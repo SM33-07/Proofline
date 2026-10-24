@@ -1,0 +1,262 @@
+# Architecture Decisions and Resolutions (ADR) — RailSync
+
+**Baseline SRS:** v0.2 (24 October 2026)  
+**Date:** 24 October 2026  
+**Status:** Approved & Implemented in Revision 1.1 of Implementation Plan  
+
+---
+
+## 1. PNR Allocation, Sequence Gaps, and Audit Rollback Semantics
+
+- **Context:** SRS §4 (FR-R02) mandates that PNRs must be unique, generated on booking creation (`PENDING`), and never re-used even after cancellation or transaction rollback. Concurrently, SRS transaction requirements mandate that audit logs must be transactional: rolled-back operations must leave zero committed audit rows.
+- **Decision:**
+  1. PNRs are allocated from a monotonic, non-recycling sequence generator.
+  2. If a transaction or savepoint rolls back (such as a failed member in a group booking), the generated PNR is discarded, resulting in an intentional gap in the sequence. This PNR is never re-issued.
+  3. All partial mutations performed by the failed transaction—including row insertions in `BOOKING`, `SEAT_ALLOCATION`, `WAITLIST_ENTRY`, and `BOOKING_AUDIT`—roll back atomically.
+  4. Committed `BOOKING_AUDIT` rows exist exclusively for committed booking creations and transitions.
+- **Traceability:** Addresses Review Item 1, FR-R02, FR-R11, FR-R18, INV-06, Fixtures R-08, R-09.
+
+---
+
+## 2. Mandatory Hierarchical Lock Ordering in MySQL
+
+- **Context:** Invariant `INV-05` mandates that a passenger can hold at most one confirmed booking on a journey across all seat classes. If concurrent transactions only locked the specific `JOURNEY_CLASS` row, two concurrent requests for the same passenger in different classes (e.g. Sleeper and AC) would not serialize against each other, creating a race condition.
+- **Decision:**
+  1. All reservation routines and transactions MUST acquire row-level locks in strict hierarchical order:
+     $$\mathbf{JOURNEY} \longrightarrow \mathbf{JOURNEY\_CLASS} \longrightarrow \mathbf{BOOKING} \longrightarrow \mathbf{SEAT\_ALLOCATION} \longrightarrow \mathbf{WAITLIST\_ENTRY}$$
+  2. The first data access statement in `book_seat` MUST lock the parent `JOURNEY` row (`SELECT ... FROM JOURNEY WHERE journey_id = ? FOR UPDATE`).
+  3. No availability-count reads are permitted prior to acquiring the `JOURNEY` lock.
+  4. The two-session concurrency experiment (`R-03`) demonstrates Session 2 blocking on the parent `JOURNEY` lock.
+- **Traceability:** Addresses Review Item 2, §2.3, §6.2, Fixture R-03.
+
+---
+
+## 3. Provisional Course Restrictions vs Implementation Readiness
+
+- **Context:** SRS v0.2 notes that the official CSC2104 course handout must be reviewed before final queue coding. While Java 26.0.2 is installed locally, the course-approved JDK version and library restrictions are external academic dependencies.
+- **Decision:**
+  1. The implementation plan classifies the zero-collections and monitor-only (`synchronized`, `wait`, `notifyAll`, fixed array `Object[]`) constraints as **provisional anticipated baselines**, rather than finalized verified constraints.
+  2. The code will be built to satisfy these strictest expected constraints out of the box, ensuring that once the handout is inspected, zero refactoring will be required if the restrictions hold.
+  3. Compilation scripts will support standard JDK targets.
+- **Traceability:** Addresses Review Item 3, §2.2, §10, Task T06.
+
+---
+
+## 4. Complete Booking Lifecycle State Transitions
+
+- **Context:** SRS §3.1 defines the complete lifecycle state machine. Previous summaries shorthanded the flow as `PENDING -> CONFIRMED / WAITLISTED -> CANCELLED`, which inadvertently omitted `PENDING -> CANCELLED`.
+- **Decision:**
+  1. The complete lifecycle table is formally specified and enforced:
+     - `PENDING` $\rightarrow$ `CONFIRMED`
+     - `PENDING` $\rightarrow$ `WAITLISTED`
+     - `PENDING` $\rightarrow$ `CANCELLED`
+     - `CONFIRMED` $\rightarrow$ `CANCELLED`
+     - `WAITLISTED` $\rightarrow$ `CONFIRMED`
+     - `WAITLISTED` $\rightarrow$ `CANCELLED`
+  2. Any transition outside this set is rejected with `IllegalTransitionException` in Java and SQL `SIGNAL SQLSTATE '45000'` in MySQL triggers.
+- **Traceability:** Addresses Review Item 4, FR-R08, `trg_booking_status_guard`, Fixture R-07.
+
+---
+
+## 5. Canonical Stored Routine Naming and Script Organization
+
+- **Context:** SRS v0.2 references routine names `book_seat`, `cancel_booking`, `promote_waitlist`, `book_group`, and `evaluate_case`. Additionally, SRS §7.1 specifies a numbered execution order.
+- **Decision:**
+  1. Stored routines adopt the exact canonical names specified in the SRS:
+     - `book_seat`
+     - `cancel_booking`
+     - `promote_waitlist`
+     - `book_group`
+     - `evaluate_case`
+     - `calculate_fare`
+     - `occupancy_pct`
+     - `run_invariants`
+  2. MySQL scripts adopt the strict numbered sequence:
+     - `mysql/00_reset.sql`
+     - `mysql/01_tables.sql`
+     - `mysql/02_seed.sql`
+     - `mysql/03_views.sql`
+     - `mysql/04_functions.sql`
+     - `mysql/05_triggers.sql`
+     - `mysql/06_procedures.sql`
+     - `mysql/07_experiments.sql`
+     - `mysql/08_invariants.sql`
+     - `mysql/09_users.sql`
+- **Traceability:** Addresses Review Item 5, Section 3 design adjustments.
+
+---
+
+## 6. Target Timeline vs Evidence-Driven Acceptance
+
+- **Context:** The delivery window is targeted at 3 to 4 days across 4 gates.
+- **Decision:**
+  1. The 3 to 4 day timeline is explicitly a planning target, not a gate acceptance condition.
+  2. No gate transition shall occur based merely on calendar time elapsed; each gate advances only when all technical checklists and concrete evidence artifacts are verified.
+- **Traceability:** Addresses Review Item 6, Section 4 & 5.
+
+---
+
+## 7. PNR Uniqueness and Persistence Across Application Restarts (Review Item 2.A)
+
+- **Context:** SRS §4 (FR-R02) mandates that PNRs are unique and never recycled across the entire system lifetime. An in-memory sequence in Java would reset upon JVM restart, risking duplicate PNR issuance across restarts.
+- **Decision:**
+  1. In Tier 1 (Java), `PnrGenerator` will use a persistent durable state mechanism. A sequence file `data/pnr_sequence.dat` tracks the highest issued sequence number. On startup, `PnrGenerator` reads this file; each issued PNR increments the counter and syncs/flushes to disk atomically.
+  2. The PNR format will be deterministic and monotonic: `PNR-` followed by an 8-digit zero-padded number (e.g., `PNR-00000001`, `PNR-00000002`).
+  3. If a transaction or savepoint aborts/rolls back, the allocated PNR is not rewound; the counter remains advanced, leaving a deliberate gap in the sequence.
+  4. In Tier 2 (MySQL), PNR generation is backed by a dedicated sequence table `PNR_SEQUENCE` using `AUTO_INCREMENT` or atomic `LAST_INSERT_ID(id + 1)` updates, which naturally survives MySQL server restarts and guarantees monotonic non-recycled sequence generation.
+- **Traceability:** Addresses Review 1.1 Item 2.A, FR-R02, Task T01, T05.
+
+---
+
+## 8. Dual-Barrier Synchronization for Unsafe Race Demonstration (Review Item 2.B)
+
+- **Context:** To reliably prove that `UnsafeInventory` has a check-then-act race condition on the last seat, a single start gate before the booking call only guarantees concurrent thread startup, not that both threads read remaining capacity before either claims the seat.
+- **Decision:**
+  1. The test harness for `UnsafeInventory` in fixture `R-01` employs a **two-stage coordinated barrier**:
+     - **Barrier 1 (`StartGate`):** Releases 2 concurrent worker threads simultaneously into `bookTicket()`.
+     - **Inter-Check Staged Barrier (`ReadBarrier`):** In `UnsafeInventory`, immediately after reading `availableSeats = 1`, each thread signals its read and waits on a 2-party barrier before proceeding to the claim and decrement step.
+  2. This forces both Thread 1 and Thread 2 to observe `availableSeats == 1` concurrently before either thread is allowed to mutate the inventory.
+  3. Both threads then proceed to confirm bookings and decrement the counter, resulting in 2 confirmed bookings for a single physical seat (over-allocation recorded, reproducing the flaw deterministically).
+  4. In `SafeInventory`, the entire check-and-claim block is enclosed in a single intrinsic monitor lock (`synchronized (journeyLock)`), preventing any other thread from observing or mutating inventory until the lock is released.
+- **Traceability:** Addresses Review 1.1 Item 2.B, FR-R15, Fixture R-01, Task T08.
+
+---
+
+## 9. Transactional Boundary for Cross-Table Invariant Enforcement (Review Item 2.C)
+
+- **Context:** Enforcing mutually-referencing constraints via immediate row-level triggers (e.g. "every confirmed booking must have an allocation" AND "every allocation must belong to a confirmed booking") causes circular dependency deadlocks during intermediate transaction steps: updating `BOOKING` first leaves it without an allocation, while inserting `SEAT_ALLOCATION` first fails because the booking is not yet `CONFIRMED`.
+- **Decision:**
+  1. Relational structural constraints are enforced via foreign keys and composite unique keys at the schema level:
+     - `SEAT_ALLOCATION.booking_id` is a UNIQUE foreign key referencing `BOOKING(booking_id)`.
+     - `SEAT_ALLOCATION.journey_seat_id` is a UNIQUE foreign key referencing `JOURNEY_SEAT(journey_seat_id)`.
+     - `SEAT_ALLOCATION(passenger_id, journey_id)` is a composite UNIQUE key enforcing Invariant `INV-05`.
+  2. Mutually-dependent transitions are orchestrated procedurally within atomic stored procedures (`book_seat`, `cancel_booking`, `promote_waitlist`):
+     - In `book_seat`: the procedure creates the booking in state `PENDING`, verifies inventory under lock, inserts `SEAT_ALLOCATION`, and then updates status to `CONFIRMED` in the exact same transaction before `COMMIT`.
+  3. Triggers enforce uni-directional guards:
+     - `trg_allocation_guard`: An allocation row cannot be inserted if the referenced booking is in status `CANCELLED` or `WAITLISTED`.
+     - `trg_waitlist_guard`: A waitlist row cannot be inserted if the referenced booking has status `CONFIRMED` or `CANCELLED`.
+     - `trg_booking_status_guard`: Validates lifecycle state machine transitions.
+  4. Post-transaction invariant suite (`08_invariants.sql` and procedure `run_invariants`) performs complete cross-table cardinality assertions (`INV-01` through `INV-07`) after every committed operation.
+- **Traceability:** Addresses Review 1.1 Item 2.C, FR-R08, INV-01..INV-06, Task T16, T18, T20.
+
+---
+
+## 10. Lookup-and-Lock Pattern for Cancellation and Promotion (Review Item 2.D)
+
+- **Context:** The global lock hierarchy is `JOURNEY` $\rightarrow$ `JOURNEY_CLASS` $\rightarrow$ `BOOKING` $\rightarrow$ `SEAT_ALLOCATION` $\rightarrow$ `WAITLIST_ENTRY`. However, `cancel_booking` starts with a PNR or `booking_id`, and `promote_waitlist` may be called internally or after cancellation. If `cancel_booking` locked `BOOKING` first and then attempted to acquire `JOURNEY`, it would violate lock hierarchy and risk deadlocks against concurrent bookings.
+- **Decision:**
+  1. In `cancel_booking(p_pnr)`:
+     - **Step 1 (Lookup without mutation):** Read `booking_id`, `journey_id`, `journey_class_id`, and current `status` via read-only lookup (`LOCK IN SHARE MODE` or simple read).
+     - **Step 2 (Hierarchical Lock Acquisition):** Acquire exclusive row locks in strict order:
+       ```sql
+       -- Lock parent JOURNEY
+       SELECT journey_id FROM JOURNEY WHERE journey_id = v_journey_id FOR UPDATE;
+       -- Lock child JOURNEY_CLASS
+       SELECT journey_class_id FROM JOURNEY_CLASS WHERE journey_class_id = v_journey_class_id FOR UPDATE;
+       -- Lock target BOOKING
+       SELECT booking_id, status FROM BOOKING WHERE booking_id = v_booking_id FOR UPDATE;
+       ```
+     - **Step 3 (Mutation):** Release `SEAT_ALLOCATION`, update status to `CANCELLED`, insert `BOOKING_AUDIT`.
+     - **Step 4 (Promotion):** Call `promote_waitlist(v_journey_class_id)` while still holding the parent journey and class locks.
+  2. For multiple rows at the same level (e.g. scanning waitlist candidates in `promote_waitlist`), rows are ordered deterministically by `(booked_at ASC, booking_id ASC)`.
+- **Traceability:** Addresses Review 1.1 Item 2.D, FR-R07, FR-R17, Task T19, T21, T22.
+
+---
+
+## 11. Staged In-Memory Commit Boundary for Java Audit Logging (Review Item 2.E)
+
+- **Context:** In Tier 2, MySQL triggers write audit rows that automatically roll back if the transaction aborts. In Tier 1, direct file appends cannot be rolled back. Writing audit rows to disk before an operation successfully completes would create orphan audit records on failure.
+- **Decision:**
+  1. In Tier 1, an in-memory transactional commit boundary pattern is implemented:
+     - `InMemoryBookingService` stages audit records in an in-memory thread-local or operation-scoped buffer during the operation.
+     - Only when the entire booking or cancellation operation succeeds and all state mutations are validated against invariants, `AuditLogger.commit(auditEntry)` is called to append to the log file.
+     - If any exception or invariant check fails during the operation, the staged audit entry is discarded without being written to disk.
+  2. Tests will explicitly simulate failure after mutation to verify zero audit rows are committed on error.
+- **Traceability:** Addresses Review 1.1 Item 2.E, FR-R11, INV-06, Task T04, T05.
+
+---
+
+## 12. Group Booking Savepoint Failure Injection Mechanics (Review Item 2.F)
+
+- **Context:** Fixture `R-08` verifies that when Member 2 of a 3-member group booking fails, its PNR is consumed with a gap and all its mutations roll back to `SAVEPOINT member_2`, while Members 1 and 3 commit. If Member 2 fails before PNR allocation, no PNR gap is created to verify.
+- **Decision:**
+  1. The group booking procedure `book_group` executes in the following sequence for each member $i$:
+     - Generate unique PNR for Member $i$ (PNR sequence increments).
+     - Establish `SAVEPOINT sp_member_i`.
+     - Insert `BOOKING` row with `pnr`, `passenger_id`, status `PENDING`, and shared `group_ref`.
+     - For Member 2 in test fixture `R-08`, an intentional constraint violation is triggered *after* PNR allocation and booking insertion (e.g. attempting to allocate an already allocated seat or violating Invariant `INV-05`).
+     - The exception handler catches the error and executes `ROLLBACK TO SAVEPOINT sp_member_2`.
+  2. This cleanly unwinds Member 2's booking row and any partial side-effects, while Member 2's PNR remains permanently consumed and abandoned.
+  3. Member 3 then generates the next PNR (e.g. Member 1 = `PNR-00000001`, Member 2 = `PNR-00000002` [rolled back], Member 3 = `PNR-00000003`), providing clear verifiable proof of the sequence gap.
+- **Traceability:** Addresses Review 1.1 Item 2.F, FR-R02, FR-R18, Fixture R-08, Task T23.
+
+---
+
+## 13. Schema Inventory Reconciliation: 17 Tables (Review Gate 1 Reconcile)
+
+- **Context:** The initial conceptual plan listed 16 tables. During Gate 1 implementation of ADR-7 (PNR persistence across restarts), a dedicated sequence table `PNR_SEQUENCE` was introduced.
+- **Decision:**
+  - The authoritative schema inventory comprises **17 InnoDB tables**:
+    1. `TRAIN`
+    2. `JOURNEY`
+    3. `JOURNEY_CLASS`
+    4. `JOURNEY_SEAT`
+    5. `PASSENGER`
+    6. `PNR_SEQUENCE` (Durable monotonic sequence table for ADR-7)
+    7. `BOOKING`
+    8. `SEAT_ALLOCATION`
+    9. `WAITLIST_ENTRY`
+    10. `BOOKING_AUDIT`
+    11. `REFUND_RULE`
+    12. `RULE_VERSION`
+    13. `DISRUPTION_CASE`
+    14. `CASE_EVENT`
+    15. `CASE_EVALUATION`
+    16. `CASE_EVALUATION_CODE`
+    17. `CASE_EVALUATION_EVENT`
+- **Traceability:** Aligns `01_tables.sql`, `IMPLEMENTATION_PLAN.md`, and Gate 1 schema deployment.
+
+---
+
+## 14. Routine and Script Delivery Schedule by Gate (Review Gate 1 Reconcile)
+
+- **Context:** Clarify which stored routines and SQL scripts belong to which acceptance gate.
+- **Decision:**
+  - **Gate 1 (Foundations):**
+    - Routines: `book_seat`, `cancel_booking`, `promote_waitlist`, `run_invariants`, `calculate_fare`, `occupancy_pct`.
+    - Scripts: `00_reset.sql`, `01_tables.sql`, `02_seed.sql`, `03_views.sql`, `04_functions.sql`, `05_triggers.sql`, `06_procedures.sql`, `08_invariants.sql`, `tests/test_gate1_foundations.sql`.
+  - **Gate 2 (Concurrency & Transactions):**
+    - Routines: `book_group` (Savepoint multi-member booking with partial failure).
+    - Scripts: `07_experiments.sql` (two-session lock test harness, group savepoint test), `09_users.sql` (least-privilege grant matrix), automated batch runners.
+  - **Gate 3 (Disruption Refund Advisor & Parity):**
+    - Routines: `evaluate_case` (policy evaluation engine), rule version interval matching, event filtering.
+    - Scripts: `test_gate3_refund_parity.sql`, canonical JSON export queries.
+- **Traceability:** Reconciles planned vs deployed artifacts across Gates 1, 2, and 3.
+
+---
+
+## 15. Invariant Verification Mapping (INV-01 through INV-07)
+
+| Invariant | Formal Definition | Gate 1 Test Verification | Gate 2 Test Verification |
+|---|---|---|---|
+| **INV-01** | Confirmed $\le$ Total Seats per class | S-01, S-02, S-05, `08_invariants.sql` | Fixture R-02 (100 reps, 10 workers), `run_invariants` |
+| **INV-02** | Seat Exclusivity (at most 1 alloc per seat) | S-01, S-04, `08_invariants.sql` | Fixture R-01 (shows failure in unsafe), R-02 (shows pass in safe) |
+| **INV-03** | Status-Allocation Cardinality (CONFIRMED $\leftrightarrow$ 1 alloc) | S-01, S-02, S-04, S-05, `08_invariants.sql` | Fixture R-04, R-06, R-08, R-09 |
+| **INV-04** | Waitlist Cardinality (WAITLISTED $\leftrightarrow$ 1 waitlist row) | S-02, S-04, S-05, `08_invariants.sql` | Fixture R-02, R-04, R-06 |
+| **INV-05** | Passenger Single Confirmation per Journey | S-03 (duplicate rejected), `08_invariants.sql` | Fixture R-05 (ineligible waiter skipped), R-08 |
+| **INV-06** | Audit Trail Completeness (committed bkg $\leftrightarrow$ audit rows) | S-01, S-02, S-04, `08_invariants.sql` | Fixture R-08, R-09 (zero uncommitted audit rows) |
+| **INV-07** | Deterministic Waitlist Promotion Selection | S-04 (sequential promotion), FR-R17 test | Fixture R-04, R-05 (promotion under contention) |
+
+## 16. ADR-16: Canonical Disruption Refund Evaluation Contract (Frozen)
+
+### Context
+Gate 3 requires implementing independent rule evaluators in Java OOP (Tier 1) and MySQL 8 Stored Procedures (Tier 2) and verifying byte-for-byte differential parity across standardized disruption fixtures (D-01 to D-14). Discrepancies in field names (e.g. `amount` vs `refundAmount`), timestamp formats, array ordering, or null handling would cause artificial parity failures.
+
+### Decision
+1. **Frozen Schema:** All evaluation engines emit JSON strictly matching `docs/CANONICAL_CONTRACT.md`.
+2. **Canonical Field Names:** Use `refundAmount` (not `amount`), `fixtureId`, `ruleId`, `ruleFamily`, `ruleVersion`, `outcome`, `reasonCodes`, `warnings`, `deadlineAt`, `actionCode`, `currency`, and `disclaimer`.
+3. **Deterministic Array Ordering:**
+   - `reasonCodes`: Primary determination code at index 0, followed by secondary codes sorted alphabetically.
+   - `warnings`: Sorted alphabetically.
+4. **Monetary Precision:** Strings with exactly 2 decimal places and Half-Up rounding. Non-eligible outcomes always emit `"0.00"`.
+5. **Clock Isolation:** Rule matching and event validity depend strictly on explicit fixture timestamps (`policyApplicabilityTime`, `evaluationTime`). `NOW()` and `currentTimeMillis()` are strictly prohibited in evaluation logic.
