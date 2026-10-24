@@ -1,0 +1,8 @@
+{
+  "fixtureId": "R-09",
+  "description": "Fatal transaction error triggers complete rollback with PNR gap",
+  "action": "INSERT_AND_ROLLBACK",
+  "committedBookings": 0,
+  "committedAuditRows": 0,
+  "pnrGapPreserved": true
+}

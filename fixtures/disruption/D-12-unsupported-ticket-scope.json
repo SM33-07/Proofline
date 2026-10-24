@@ -1,0 +1,28 @@
+{
+  "fixtureId": "D-12-unsupported-ticket-scope",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "verifiedRuleFixture": true,
+  "ticketScope": "WAITLISTED",
+  "policyApplicabilityTime": "2026-11-03T08:00:00+05:30",
+  "evaluationTime": "2026-11-03T14:25:00+05:30",
+  "fareINR": "1250.00",
+  "events": [
+    {
+      "type": "SCHEDULED_DEPARTURE",
+      "eventTime": "2026-11-03T08:00:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    }
+  ],
+  "expected": {
+    "outcome": "UNRESOLVED",
+    "reasonCodes": [
+      "UNSUPPORTED_TICKET_SCOPE"
+    ],
+    "warnings": [],
+    "deadlineAt": null,
+    "actionCode": "NO_ACTION_UNRESOLVED",
+    "currency": "INR",
+    "refundAmount": "0.00"
+  }
+}

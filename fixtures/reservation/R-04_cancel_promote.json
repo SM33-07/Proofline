@@ -1,0 +1,15 @@
+{
+  "fixtureId": "R-04",
+  "description": "Cancel confirmed booking with 2 waitlisted candidates",
+  "initialState": {
+    "confirmed": 1,
+    "waitlisted": 2
+  },
+  "action": "CANCEL_CONFIRMED",
+  "expectedResult": {
+    "freedAllocations": 1,
+    "promotedCandidates": 1,
+    "promotedPnr": "earliest_eligible",
+    "remainingWaitlist": 1
+  }
+}

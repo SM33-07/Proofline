@@ -1,0 +1,9 @@
+{
+  "fixtureId": "S-05",
+  "description": "Booking into zero-seat General class results in immediate waitlisting",
+  "journeyId": 101,
+  "journeyClassId": 3,
+  "passengerId": 4,
+  "expectedStatus": "WAITLISTED",
+  "expectedWaitlistPosition": 1
+}

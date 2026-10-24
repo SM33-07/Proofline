@@ -1,0 +1,11 @@
+{
+  "fixtureId": "R-02",
+  "description": "Safe concurrency stress test across 100 repetitions with 10 workers",
+  "seatsAvailable": 1,
+  "concurrentWorkers": 10,
+  "repetitions": 100,
+  "expectedConfirmedPerRep": 1,
+  "expectedWaitlistedPerRep": 9,
+  "expectedOverAllocations": 0,
+  "invariant": "INV-01_SATISFIED"
+}

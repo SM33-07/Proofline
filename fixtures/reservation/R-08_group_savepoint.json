@@ -1,0 +1,15 @@
+{
+  "fixtureId": "R-08",
+  "description": "3-member group booking with member 2 failure and savepoint rollback",
+  "memberCount": 3,
+  "failingMember": 2,
+  "expectedCommittedMembers": [
+    1,
+    3
+  ],
+  "expectedRolledBackMembers": [
+    2
+  ],
+  "pnrSequenceGap": true,
+  "orphanAuditRows": 0
+}

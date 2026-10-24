@@ -1,0 +1,16 @@
+{
+  "fixtureId": "R-07",
+  "description": "Attempt illegal status transitions (e.g., CANCELLED -> CONFIRMED)",
+  "attemptedTransitions": [
+    {
+      "from": "CANCELLED",
+      "to": "CONFIRMED"
+    },
+    {
+      "from": "CONFIRMED",
+      "to": "WAITLISTED"
+    }
+  ],
+  "expectedOutcome": "REJECTED_WITH_ILLEGAL_TRANSITION_EXCEPTION",
+  "sideEffectsCommitted": 0
+}

@@ -1,0 +1,13 @@
+{
+  "fixtureId": "R-05",
+  "description": "Waitlist promotion skips candidate holding confirmed seat in another class",
+  "waitlistCandidate1": {
+    "hasConfirmedSeatInOtherClass": true,
+    "expectedAction": "SKIPPED_WITHOUT_MUTATION"
+  },
+  "waitlistCandidate2": {
+    "hasConfirmedSeatInOtherClass": false,
+    "expectedAction": "PROMOTED_TO_CONFIRMED"
+  },
+  "invariant": "INV-05_INV-07_PRESERVED"
+}

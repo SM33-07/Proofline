@@ -1,0 +1,33 @@
+{
+  "fixtureId": "D-08-train-cancelled-auto-refund",
+  "ruleFamily": "TRAIN_CANCELLED_E_TICKET",
+  "ruleVersion": 1,
+  "verifiedRuleFixture": true,
+  "ticketScope": "SIMULATED_E_TICKET_CONFIRMED",
+  "policyApplicabilityTime": "2026-11-03T08:00:00+05:30",
+  "evaluationTime": "2026-11-03T10:00:00+05:30",
+  "fareINR": "1250.00",
+  "events": [
+    {
+      "type": "SCHEDULED_DEPARTURE",
+      "eventTime": "2026-11-03T08:00:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    },
+    {
+      "type": "TRAIN_CANCELLED",
+      "eventTime": "2026-11-03T07:30:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    }
+  ],
+  "expected": {
+    "outcome": "ELIGIBLE",
+    "reasonCodes": [
+      "TRAIN_CANCELLED_AUTO_REFUND"
+    ],
+    "warnings": [],
+    "deadlineAt": null,
+    "actionCode": "NO_TDR_REQUIRED",
+    "currency": "INR",
+    "refundAmount": "1250.00"
+  }
+}

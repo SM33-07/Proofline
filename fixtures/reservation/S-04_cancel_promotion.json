@@ -1,0 +1,11 @@
+{
+  "fixtureId": "S-04",
+  "description": "Cancellation of confirmed booking triggers promotion of earliest eligible waiter",
+  "journeyId": 101,
+  "journeyClassId": 2,
+  "action": "CANCEL",
+  "targetPnr": "PNR-00000002",
+  "expectedCancelledStatus": "CANCELLED",
+  "expectedPromotedPnr": "PNR-00000003",
+  "expectedPromotedStatus": "CONFIRMED"
+}

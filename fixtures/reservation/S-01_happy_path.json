@@ -1,0 +1,11 @@
+{
+  "fixtureId": "S-01",
+  "description": "Happy path booking into available Sleeper class",
+  "journeyId": 101,
+  "journeyClassId": 1,
+  "passengerId": 1,
+  "groupRef": "GRP-SQL-01",
+  "expectedStatus": "CONFIRMED",
+  "expectedAllocationCount": 1,
+  "expectedWaitlistCount": 0
+}

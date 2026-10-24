@@ -1,0 +1,17 @@
+{
+  "fixtureId": "S-02",
+  "description": "Overflow to waitlist on single-seat AC class",
+  "journeyId": 101,
+  "journeyClassId": 2,
+  "initialBookings": [
+    {
+      "passengerId": 2,
+      "expectedStatus": "CONFIRMED"
+    }
+  ],
+  "overflowBooking": {
+    "passengerId": 3,
+    "expectedStatus": "WAITLISTED",
+    "expectedWaitlistPosition": 1
+  }
+}

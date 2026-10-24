@@ -1,0 +1,13 @@
+{
+  "fixtureId": "R-03",
+  "description": "Two MySQL sessions competing for last seat under hierarchical locks",
+  "session1LockOrder": [
+    "JOURNEY",
+    "JOURNEY_CLASS"
+  ],
+  "session1HoldSeconds": 3,
+  "session2Behavior": "BLOCKS_ON_PARENT_JOURNEY_LOCK",
+  "session1Outcome": "CONFIRMED",
+  "session2Outcome": "WAITLISTED",
+  "expectedOverAllocations": 0
+}

@@ -1,0 +1,5 @@
+{
+  "fixtureId": "R-10",
+  "description": "Comprehensive invariant verification across INV-01 through INV-07",
+  "expectedViolationsOnCleanSeed": 0
+}

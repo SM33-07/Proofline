@@ -1,0 +1,16 @@
+{
+  "fixtureId": "S-03",
+  "description": "Cross-class duplicate confirmation rejection enforcing INV-05",
+  "journeyId": 101,
+  "existingConfirmation": {
+    "journeyClassId": 1,
+    "passengerId": 1,
+    "status": "CONFIRMED"
+  },
+  "attemptedBooking": {
+    "journeyClassId": 2,
+    "passengerId": 1
+  },
+  "expectedOutcome": "REJECTED",
+  "expectedErrorCode": "INV-05_DUPLICATE_CONFIRMED"
+}

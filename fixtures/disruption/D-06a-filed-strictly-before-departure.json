@@ -1,0 +1,52 @@
+{
+  "fixtureId": "D-06a-filed-strictly-before-departure",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "verifiedRuleFixture": true,
+  "ticketScope": "SIMULATED_E_TICKET_CONFIRMED",
+  "policyApplicabilityTime": "2026-11-03T08:00:00+05:30",
+  "evaluationTime": "2026-11-03T14:34:59+05:30",
+  "fareINR": "1250.00",
+  "events": [
+    {
+      "type": "SCHEDULED_DEPARTURE",
+      "eventTime": "2026-11-03T08:00:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    },
+    {
+      "type": "DELAY_AT_BOARDING_MINUTES",
+      "value": 210,
+      "eventTime": "2026-11-03T14:00:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    },
+    {
+      "type": "PASSENGER_NOT_TRAVELLED",
+      "eventTime": "2026-11-03T14:10:00+05:30",
+      "source": "PASSENGER_REPORTED"
+    },
+    {
+      "type": "FILING_ATTEMPT",
+      "eventTime": "2026-11-03T14:34:59+05:30",
+      "source": "SIMULATED_INPUT"
+    },
+    {
+      "type": "ACTUAL_DEPARTURE",
+      "eventTime": "2026-11-03T14:35:00+05:30",
+      "source": "SIMULATED_OFFICIAL"
+    }
+  ],
+  "expected": {
+    "outcome": "ELIGIBLE",
+    "reasonCodes": [
+      "DELAY_OVER_THRESHOLD",
+      "FILED_BEFORE_DEPARTURE"
+    ],
+    "warnings": [
+      "PASSENGER_STATUS_SELF_REPORTED"
+    ],
+    "deadlineAt": "2026-11-03T14:35:00+05:30",
+    "actionCode": "MODELLED_TDR_FILED_BEFORE_DEPARTURE",
+    "currency": "INR",
+    "refundAmount": "1250.00"
+  }
+}

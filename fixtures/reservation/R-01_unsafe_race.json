@@ -1,0 +1,14 @@
+{
+  "fixtureId": "R-01",
+  "description": "Unsafe concurrency race demo with dual-barrier coordination",
+  "seatsAvailable": 1,
+  "concurrentWorkers": 2,
+  "coordination": [
+    "StartGate",
+    "ReadBarrier"
+  ],
+  "expectedOutcome": "OVER_ALLOCATION_OBSERVED",
+  "expectedConfirmedCount": 2,
+  "expectedRemainingSeats": -1,
+  "defectProven": true
+}

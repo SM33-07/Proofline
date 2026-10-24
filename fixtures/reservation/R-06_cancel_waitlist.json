@@ -1,0 +1,8 @@
+{
+  "fixtureId": "R-06",
+  "description": "Cancel waitlisted booking: no seat freed, no promotion triggered",
+  "action": "CANCEL_WAITLISTED",
+  "expectedFreedSeats": 0,
+  "expectedPromotions": 0,
+  "expectedWaitlistReduction": 1
+}
