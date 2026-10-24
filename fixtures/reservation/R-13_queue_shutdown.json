@@ -1,0 +1,16 @@
+{
+  "fixtureId": "R-13",
+  "description": "Bounded FIFO queue lifecycle: capacity, FIFO order, blocking, and graceful drain on shutdown",
+  "capacity": 5,
+  "lifecycleSteps": [
+    "ENQUEUE_TO_CAPACITY",
+    "PRODUCER_BLOCKS_WHEN_FULL",
+    "CONSUMER_BLOCKS_WHEN_EMPTY",
+    "SHUTDOWN_WAKES_ALL_WORKERS",
+    "REJECT_NEW_PUTS_WITH_ILLEGAL_STATE_EXCEPTION",
+    "CONSUMERS_DRAIN_EXISTING_ITEMS",
+    "EMPTY_QUEUE_AFTER_DRAIN"
+  ],
+  "expectedFinalQueueSize": 0,
+  "threadLeaks": 0
+}

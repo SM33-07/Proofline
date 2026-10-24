@@ -1,0 +1,31 @@
+{
+  "fixtureId": "R-14",
+  "description": "Occupancy percentage calculation over seeded classes including zero-seat class",
+  "journeyId": 101,
+  "scenarios": [
+    {
+      "classCode": "SL",
+      "totalSeats": 5,
+      "confirmedSeats": 0,
+      "expectedOccupancyPct": "0.00"
+    },
+    {
+      "classCode": "3A",
+      "totalSeats": 1,
+      "confirmedSeats": 1,
+      "expectedOccupancyPct": "100.00"
+    },
+    {
+      "classCode": "SL_PARTIAL",
+      "totalSeats": 5,
+      "confirmedSeats": 2,
+      "expectedOccupancyPct": "40.00"
+    },
+    {
+      "classCode": "GN",
+      "totalSeats": 0,
+      "confirmedSeats": 0,
+      "expectedOccupancyPct": "0.00"
+    }
+  ]
+}

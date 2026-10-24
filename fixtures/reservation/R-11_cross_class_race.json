@@ -1,0 +1,24 @@
+{
+  "fixtureId": "R-11",
+  "description": "Java concurrent cross-class booking race for same passenger and journey",
+  "journeyId": 101,
+  "passengerId": 1,
+  "competingClasses": [
+    {
+      "journeyClassId": 1,
+      "classCode": "SL"
+    },
+    {
+      "journeyClassId": 2,
+      "classCode": "3A"
+    }
+  ],
+  "concurrentRequests": 2,
+  "coordination": "StartGate",
+  "expectedOutcome": {
+    "confirmedBookings": 1,
+    "rejectedOrWaitlistedBookings": 1,
+    "duplicateAllocations": 0
+  },
+  "invariant": "INV-05_SATISFIED"
+}

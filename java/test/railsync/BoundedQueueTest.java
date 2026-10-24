@@ -33,6 +33,7 @@ public class BoundedQueueTest {
         testMultiThreadedProducerConsumer();
         testGracefulShutdownAndDrain();
         testRepeatedProducerConsumerCycles();
+        testShutdownWakesBlockedWorkers();
 
         System.out.println("----------------------------------------------------");
         System.out.println(String.format("Queue Tests Completed: %d/%d passed.", testsPassed, testsRun));
@@ -274,5 +275,94 @@ public class BoundedQueueTest {
         }
 
         assertTrue(allCyclesPassed, "All 5 repeated producer-consumer cycles completed with zero deadlocks and zero lost items (2500 items total)");
+    }
+
+    private static boolean waitForThreadState(Thread thread, Thread.State targetState, long timeoutMs) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (thread.getState() == targetState) {
+                return true;
+            }
+            Thread.sleep(2);
+        }
+        return thread.getState() == targetState;
+    }
+
+    private static void testShutdownWakesBlockedWorkers() throws Exception {
+        System.out.println();
+        System.out.println("Test: R-13 Queue Shutdown Wakes Blocked Workers (Consumer on Empty, Producer on Full)");
+
+        // Sub-test 1: Consumer blocked on empty queue wakes upon shutdown() and returns null
+        final BoundedFIFOQueue q1 = new BoundedFIFOQueue(2);
+        final boolean[] consumerWoken = {false};
+        final Object[] consumerResult = {new Object()}; // non-null sentinel
+
+        Thread consumerThread = new Thread(() -> {
+            try {
+                consumerResult[0] = q1.take(); // Must block on empty queue
+                consumerWoken[0] = true;
+            } catch (InterruptedException e) {
+                // Not expecting interrupted exception, expecting clean wake
+            }
+        });
+        consumerThread.start();
+
+        // Deterministic observable thread state polling: wait until consumer enters WAITING
+        boolean consumerWaiting = waitForThreadState(consumerThread, Thread.State.WAITING, 2000);
+        assertTrue(consumerWaiting, "Consumer reached WAITING state on empty queue");
+        assertTrue(consumerThread.isAlive(), "Consumer is alive and blocked waiting on empty queue");
+
+        q1.shutdown();
+        consumerThread.join(2000);
+
+        assertTrue(!consumerThread.isAlive(), "Blocked consumer thread woke up upon shutdown and joined");
+        assertTrue(consumerWoken[0], "Consumer unblocked cleanly without thread leak");
+        assertTrue(consumerResult[0] == null, "take() on shutdown empty queue returned null");
+
+        // Sub-test 2: Producer blocked on full queue wakes upon shutdown() and catches IllegalStateException
+        final BoundedFIFOQueue q2 = new BoundedFIFOQueue(1);
+        q2.put("ExistingItem");
+
+        final boolean[] producerCaught = {false};
+        final boolean[] producerWoken = {false};
+
+        Thread producerThread = new Thread(() -> {
+            try {
+                q2.put("BlockedItem"); // Must block on full queue
+                producerWoken[0] = true;
+            } catch (IllegalStateException e) {
+                producerCaught[0] = true;
+            } catch (InterruptedException e) {
+                // Not expecting interrupted exception
+            }
+        });
+        producerThread.start();
+
+        // Deterministic observable thread state polling: wait until producer enters WAITING
+        boolean producerWaiting = waitForThreadState(producerThread, Thread.State.WAITING, 2000);
+        assertTrue(producerWaiting, "Producer reached WAITING state on full queue");
+        assertTrue(producerThread.isAlive(), "Producer is alive and blocked waiting on full queue");
+
+        q2.shutdown();
+        producerThread.join(2000);
+
+        assertTrue(!producerThread.isAlive(), "Blocked producer thread woke up upon shutdown and joined");
+        assertTrue(producerCaught[0], "Producer unblocked on shutdown and caught IllegalStateException");
+        assertTrue(!producerWoken[0], "Blocked item was rejected and not enqueued");
+
+        // Sub-test 3: Remaining items can still be drained after producer unblocked, preserving FIFO order
+        final BoundedFIFOQueue q3 = new BoundedFIFOQueue(3);
+        q3.put("Item-Alpha");
+        q3.put("Item-Beta");
+        q3.shutdown();
+
+        Object drained1 = q3.take();
+        Object drained2 = q3.take();
+        Object drainedEmpty = q3.take();
+
+        assertTrue("Item-Alpha".equals(drained1), "First drained item is Item-Alpha (FIFO preserved)");
+        assertTrue("Item-Beta".equals(drained2), "Second drained item is Item-Beta (FIFO preserved)");
+        assertTrue(drainedEmpty == null, "take() on empty shutdown queue returns null");
+        assertTrue(q3.size() == 0, "Queue size is 0 after complete drain");
     }
 }

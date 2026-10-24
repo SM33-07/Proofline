@@ -1,0 +1,30 @@
+{
+  "fixtureId": "R-12",
+  "description": "MySQL two-session cross-class booking race serialized by parent JOURNEY lock",
+  "journeyId": 101,
+  "passengerId": 1,
+  "session1": {
+    "journeyClassId": 1,
+    "lockOrder": [
+      "JOURNEY",
+      "JOURNEY_CLASS"
+    ],
+    "action": "BOOK_SEAT",
+    "expectedStatus": "CONFIRMED"
+  },
+  "session2": {
+    "journeyClassId": 2,
+    "lockOrder": [
+      "JOURNEY",
+      "JOURNEY_CLASS"
+    ],
+    "action": "BOOK_SEAT_WHILE_SESSION1_HOLDS_JOURNEY_LOCK",
+    "behavior": "BLOCKS_ON_PARENT_JOURNEY_ROW_LOCK",
+    "expectedStatusAfterSession1Commit": "REJECTED_OR_WAITLISTED"
+  },
+  "expectedOutcome": {
+    "confirmedAllocations": 1,
+    "duplicateAllocations": 0
+  },
+  "invariant": "INV-05_SATISFIED"
+}

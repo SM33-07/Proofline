@@ -16,7 +16,7 @@ SELECT
     jc.total_seats,
     COUNT(sa.allocation_id) AS confirmed_seats,
     (jc.total_seats - COUNT(sa.allocation_id)) AS available_seats,
-    ROUND((COUNT(sa.allocation_id) / NULLIF(jc.total_seats, 0)) * 100, 2) AS occupancy_pct
+    COALESCE(ROUND((COUNT(sa.allocation_id) / NULLIF(jc.total_seats, 0)) * 100, 2), 0.00) AS occupancy_pct
 FROM JOURNEY j
 JOIN TRAIN t ON j.train_id = t.train_id
 JOIN JOURNEY_CLASS jc ON j.journey_id = jc.journey_id
