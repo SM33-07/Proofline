@@ -1,0 +1,14 @@
+{
+  "fixtureId": "D-06b-filed-exactly-at-departure",
+  "ruleId": "IRCTC_RULE_6_LATE_3H",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "outcome": "DEADLINE_EXPIRED",
+  "reasonCodes": ["FILED_AFTER_DEPARTURE"],
+  "warnings": ["PASSENGER_STATUS_SELF_REPORTED"],
+  "deadlineAt": "2026-11-03T14:35:00+05:30",
+  "actionCode": "NO_ACTION_DEADLINE_EXPIRED",
+  "currency": "INR",
+  "refundAmount": "0.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

@@ -1,0 +1,77 @@
+====================================================
+Running RailSync Gate 1 Sequential Acceptance Tests
+====================================================
+
+Test S-01: Happy Path Booking into Available Sleeper Class
+  [PASS] Booking object created
+  [PASS] Booking status is CONFIRMED
+  [PASS] Confirmed count in class is 1
+  [PASS] Exactly one seat allocation created
+  [PASS] Available seats decremented to 4
+  [PASS] Valid PNR issued: PNR-00000001
+
+Test S-02: Overflow to Waitlist on 1-Seat Class
+  [PASS] First booking CONFIRMED
+  [PASS] Second booking WAITLISTED
+  [PASS] Confirmed count remains 1
+  [PASS] Waitlist contains 1 entry
+  [PASS] Waitlist position is 1
+  [PASS] Waitlist links to second booking
+
+Test S-03: Cross-Class Duplicate Confirmation Rejection (INV-05)
+  [PASS] Passenger 1 confirmed in SL
+  [PASS] DuplicateConfirmedException thrown on cross-class double-booking attempt
+  [PASS] AC class remains empty; 0 side effects
+
+Test S-04: Cancellation with Cascade Waitlist Promotion
+  [PASS] Booking 1 confirmed
+  [PASS] Booking 2 waitlisted
+  [PASS] Booking 3 waitlisted
+  [PASS] Booking 1 status transitioned to CANCELLED
+  [PASS] Booking 2 promoted to CONFIRMED
+  [PASS] Exactly 1 active allocation in class
+  [PASS] Seat allocated to Booking 2
+  [PASS] Waitlist now has 1 entry
+  [PASS] Remaining entry is Booking 3
+  [PASS] Booking 3 re-indexed to position 1
+
+Test S-05: Booking into Zero-Seat General Class
+  [PASS] Zero-seat booking is immediately WAITLISTED
+  [PASS] Confirmed count remains 0
+  [PASS] Zero seat allocations created
+  [PASS] Waitlist contains 1 entry
+
+Test Lifecycle: Complete SRS Legal & Illegal State Transitions
+  [PASS] Legal: PENDING -> CONFIRMED
+  [PASS] Legal: PENDING -> WAITLISTED
+  [PASS] Legal: PENDING -> CANCELLED
+  [PASS] Legal: CONFIRMED -> CANCELLED
+  [PASS] Legal: WAITLISTED -> CONFIRMED
+  [PASS] Legal: WAITLISTED -> CANCELLED
+  [PASS] Illegal: CANCELLED -> CONFIRMED
+  [PASS] Illegal: CANCELLED -> PENDING
+  [PASS] Illegal: CONFIRMED -> WAITLISTED
+  [PASS] Illegal: CONFIRMED -> PENDING
+  [PASS] IllegalTransitionException thrown on CANCELLED -> CONFIRMED
+
+Test PNR Persistence: Monotonic sequence surviving generator restart (ADR-7)
+  [PASS] First PNR is PNR-00000001
+  [PASS] Second PNR is PNR-00000002
+  [PASS] Third PNR after restart resumes monotonically: PNR-00000003
+
+Test FR-R17: Ineligible Waitlist Candidate Skipped Without Mutation
+  [PASS] P1 confirmed in AC
+  [PASS] Sleeper is completely full
+  [PASS] P1 waitlisted in Sleeper (Waitlist #1)
+  [PASS] P3 waitlisted in Sleeper (Waitlist #2)
+  [PASS] Ineligible P1 remains WAITLISTED (skipped)
+  [PASS] Eligible P3 promoted to CONFIRMED
+  [PASS] Sleeper confirmed count remains exactly 5 (INV-01 satisfied)
+
+Test Waitlist Cancellation (FR-R07): No seat released, no promotion
+  [PASS] Waitlisted booking transitioned to CANCELLED
+  [PASS] Waitlist is now empty
+  [PASS] Confirmed count unchanged (1 seat)
+----------------------------------------------------
+Tests Completed: 53/53 passed.
+====================================================

@@ -1,0 +1,28 @@
+================================================================================
+RAILSYNC GATE 3: DIFFERENTIAL PARITY VERIFICATION REPORT
+Comparing Tier 1 (Java OOP) vs Tier 2 (MySQL 8 Stored Procedures)
+Canonical Evaluation Contract: docs/CANONICAL_CONTRACT.md (v1.0.0-FROZEN)
+================================================================================
+Total Fixtures Evaluated: 17
+--------------------------------------------------------------------------------
+[01/17] [MATCH] Fixture D-01-late-over-3hr                     -> Outcome: ELIGIBLE         Amount: INR 1250.00
+[02/17] [MATCH] Fixture D-02-delay-exact-180min                -> Outcome: NOT_ELIGIBLE     Amount: INR 0.00
+[03/17] [MATCH] Fixture D-03-delay-179min                      -> Outcome: NOT_ELIGIBLE     Amount: INR 0.00
+[04/17] [MATCH] Fixture D-04-delay-unverified                  -> Outcome: UNRESOLVED       Amount: INR 0.00
+[05/17] [MATCH] Fixture D-05-missing-travel-state              -> Outcome: UNRESOLVED       Amount: INR 0.00
+[06/17] [MATCH] Fixture D-06a-filed-strictly-before-departure  -> Outcome: ELIGIBLE         Amount: INR 1250.00
+[07/17] [MATCH] Fixture D-06b-filed-exactly-at-departure       -> Outcome: DEADLINE_EXPIRED Amount: INR 0.00
+[08/17] [MATCH] Fixture D-06c-filed-after-departure            -> Outcome: DEADLINE_EXPIRED Amount: INR 0.00
+[09/17] [MATCH] Fixture D-06d-missing-filing-attempt           -> Outcome: UNRESOLVED       Amount: INR 0.00
+[10/17] [MATCH] Fixture D-07-passenger-travelled               -> Outcome: NOT_ELIGIBLE     Amount: INR 0.00
+[11/17] [MATCH] Fixture D-08-train-cancelled-auto-refund       -> Outcome: ELIGIBLE         Amount: INR 1250.00
+[12/17] [MATCH] Fixture D-09-historical-rule-version           -> Outcome: ELIGIBLE         Amount: INR 1250.00
+[13/17] [MATCH] Fixture D-10-no-effective-rule                 -> Outcome: UNRESOLVED       Amount: INR 0.00
+[14/17] [MATCH] Fixture D-11-rule-unverified                   -> Outcome: UNRESOLVED       Amount: INR 0.00
+[15/17] [MATCH] Fixture D-12-unsupported-ticket-scope          -> Outcome: UNRESOLVED       Amount: INR 0.00
+[16/17] [MATCH] Fixture D-13-parity-benchmark                  -> Outcome: ELIGIBLE         Amount: INR 1500.00
+[17/17] [MATCH] Fixture D-14-conflicting-events                -> Outcome: UNRESOLVED       Amount: INR 0.00
+--------------------------------------------------------------------------------
+DIFFERENTIAL PARITY SUMMARY: 17/17 FIXTURES MATCHED 100% (Field-for-Field)
+VERDICT: 100% PERFECT DIFFERENTIAL PARITY ACHIEVED BETWEEN JAVA AND MYSQL!
+================================================================================

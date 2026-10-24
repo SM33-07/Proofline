@@ -1,0 +1,10 @@
+title
+========================================================================
+title
+EVALUATING INVARIANTS ON CLEAN DEPLOYED DATABASE (INV-01 TO INV-07)
+title
+========================================================================
+inv01_capacity_violations	inv02_seat_exclusivity_violations	inv03_status_allocation_violations	inv04_waitlist_cardinality_violations	inv05_passenger_journey_violations	inv06_audit_trail_violations	inv07_waitlist_ordering_violations	total_violations
+0	0	0	0	0	0	0	0
+total_violations_on_clean_db
+0

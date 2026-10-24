@@ -1,0 +1,16 @@
+{
+  "fixtureId": "D-12-unsupported-ticket-scope",
+  "ruleId": null,
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": null,
+  "outcome": "UNRESOLVED",
+  "reasonCodes": [
+    "UNSUPPORTED_TICKET_SCOPE"
+  ],
+  "warnings": [],
+  "deadlineAt": null,
+  "actionCode": "NO_ACTION_UNRESOLVED",
+  "currency": "INR",
+  "refundAmount": "0.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

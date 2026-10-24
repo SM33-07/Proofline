@@ -1,0 +1,55 @@
+Header
+===================================================
+Header
+STARTING GATE 1 FOUNDATIONS ACCEPTANCE TEST SUITE
+Header
+===================================================
+Test
+--- TEST S-01: Happy Path Booking in Sleeper ---
+issued_pnr	booking_status	booking_id
+PNR-00000001	CONFIRMED	1
+allocation_id	booking_id	journey_seat_id	passenger_id	journey_id	allocated_at
+1	1	101	1	101	2026-10-24 20:52:38
+audit_id	booking_id	from_status	to_status	reason	changed_at	changed_by
+1	1	NULL	PENDING	Initial booking creation	2026-10-24 20:52:38	root@localhost
+2	1	PENDING	CONFIRMED	Status transition	2026-10-24 20:52:38	root@localhost
+Test
+--- TEST S-02: Overflow to Waitlist on 1-Seat Class ---
+first_ac_pnr	first_ac_status
+PNR-00000002	CONFIRMED
+second_ac_pnr	second_ac_status
+PNR-00000003	WAITLISTED
+waitlist_id	booking_id	journey_class_id	waitlist_position	created_at
+1	3	2	1	2026-10-24 20:52:39
+Test
+--- TEST S-03: Cross-Class Duplicate Confirmation Rejection (INV-05) ---
+Description
+Verifying that Passenger 1 cannot hold 2 confirmed seats on Journey 101:
+inv05_test_result
+PASS (INV-05 Duplicate Caught & Rejected)
+Test
+--- TEST S-04: Cancellation with Cascade Waitlist Promotion ---
+cancelled_pnr	old_status
+PNR-00000002	CONFIRMED
+booking_id	pnr	passenger_id	status
+3	PNR-00000003	3	CONFIRMED
+allocation_id	booking_id	journey_seat_id	passenger_id	journey_id
+3	3	201	3	101
+remaining_waitlist_count
+0
+Test
+--- TEST S-05: Booking into Zero-Seat General Class ---
+gn_pnr	gn_status
+PNR-00000005	WAITLISTED
+waitlist_id	booking_id	journey_class_id	waitlist_position
+2	4	3	1
+Header
+===================================================
+Header
+EVALUATING INVARIANTS AFTER SEQUENTIAL ACCEPTANCE
+Header
+===================================================
+inv01_capacity_violations	inv02_seat_exclusivity_violations	inv03_status_allocation_violations	inv04_waitlist_cardinality_violations	inv05_passenger_journey_violations	total_violations
+0	0	0	0	0	0
+final_violation_count
+0

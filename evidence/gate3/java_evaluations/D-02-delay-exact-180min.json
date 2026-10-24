@@ -1,0 +1,14 @@
+{
+  "fixtureId": "D-02-delay-exact-180min",
+  "ruleId": "IRCTC_RULE_6_LATE_3H",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "outcome": "NOT_ELIGIBLE",
+  "reasonCodes": ["DELAY_NOT_OVER_THRESHOLD"],
+  "warnings": [],
+  "deadlineAt": null,
+  "actionCode": "NO_ACTION_INELIGIBLE",
+  "currency": "INR",
+  "refundAmount": "0.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

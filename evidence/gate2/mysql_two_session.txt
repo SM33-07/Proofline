@@ -1,0 +1,68 @@
+================================================================================
+FIXTURE R-03: VERIFIED REPRODUCIBLE MYSQL TWO-SESSION LOCK-FIRST EXPERIMENT
+================================================================================
+Host System Timestamp (Local): 2026-10-24 22:09:49 +0530
+Lock Order Hierarchy: JOURNEY -> JOURNEY_CLASS -> BOOKING (Mandatory per ADR-2, ADR-10)
+Contention Target: Journey 101, Class 2 (AC 3-Tier, 1 total physical seat)
+Thread Coordination: Session 1 acquires lock & holds 3s; Session 2 attempts book_seat.
+--------------------------------------------------------------------------------
+SESSION EXECUTION LOGS AND TIMINGS:
+[2026-10-24 22:09:46] [Session 1 PID=24580] Starting transaction...
+[2026-10-24 22:09:46] [Session 2] Initiating book_seat(journey_class_id=2, passenger_id=2)...
+[2026-10-24 22:09:46] [Session 2] Entering book_seat; attempting SELECT journey_id FROM JOURNEY WHERE journey_id = 101 FOR UPDATE...
+[2026-10-24 22:09:46] [Session 2] BLOCKED on Journey 101 lock held by Session 1. Waiting...
+[2026-10-24 22:09:49] [Session 1] Committed transaction. Elapsed: 3.05s. Exit code: 0
+[2026-10-24 22:09:49] [Session 2] Unblocked after Session 1 COMMIT! Completed execution. Elapsed: 2.26s. Exit code: 0
+
+Process Exit Codes & Raw Standard Output:
+  Session 1 Exit Code: 0
+  Session 1 Stdout:
+    SLEEP(3)
+    0
+    session1_pnr	session1_status	session1_booking_id
+    PNR-00000001	CONFIRMED	1
+  Session 2 Exit Code: 0
+  Session 2 Stdout:
+    session2_pnr	session2_status	session2_booking_id
+    PNR-00000002	WAITLISTED	2
+--------------------------------------------------------------------------------
+INTERNAL STORAGE ENGINE DIAGNOSTICS DURING CONTENTION (CONFIRMING REAL BLOCK):
+diagnostic_title
+=== INNODB TRANSACTIONS (LOCK WAIT VERIFICATION) ===
+trx_id	trx_state	trx_started	trx_wait_started	trx_query
+57288	LOCK WAIT	2026-10-24 22:09:47	2026-10-24 22:09:47	SELECT journey_id INTO v_dummy \n    FROM JOURNEY \n    WHERE journey_id = v_journey_id \n    FOR UPDATE
+57287	RUNNING	2026-10-24 22:09:46	NULL	SELECT SLEEP(3)
+diagnostic_title
+=== PERFORMANCE SCHEMA DATA LOCKS (EXCLUSIVE & WAITING) ===
+ENGINE_TRANSACTION_ID	OBJECT_NAME	LOCK_TYPE	LOCK_MODE	LOCK_STATUS	LOCK_DATA
+57287	journey	TABLE	IX	GRANTED	NULL
+57288	journey	TABLE	IX	GRANTED	NULL
+57287	journey	RECORD	X,REC_NOT_GAP	GRANTED	101
+57288	journey	RECORD	X,REC_NOT_GAP	WAITING	101
+--------------------------------------------------------------------------------
+FINAL COMMITTED DATABASE STATE AND INVARIANT VERIFICATION:
+title
+=== POST-EXPERIMENT TABLE: BOOKING ===
+booking_id	pnr	journey_class_id	passenger_id	status	fare_inr	group_ref
+1	PNR-00000001	2	1	CONFIRMED	1450.00	GRP-SESS1
+2	PNR-00000002	2	2	WAITLISTED	1450.00	GRP-SESS2
+title
+=== POST-EXPERIMENT TABLE: SEAT_ALLOCATION ===
+allocation_id	booking_id	journey_seat_id	passenger_id	journey_id
+1	1	201	1	101
+title
+=== POST-EXPERIMENT TABLE: WAITLIST_ENTRY ===
+waitlist_id	booking_id	journey_class_id	waitlist_position
+1	2	2	1
+title
+=== INVARIANT EVALUATION SUMMARY (ALL 7 INVARIANTS) ===
+inv01_capacity_violations	inv02_seat_exclusivity_violations	inv03_status_allocation_violations	inv04_waitlist_cardinality_violations	inv05_passenger_journey_violations	inv06_audit_trail_violations	inv07_waitlist_ordering_violations	total_violations
+0	0	0	0	0	0	0	0
+
+================================================================================
+VERIFICATION OUTCOME: SUCCESS.
+1. Session 2 was confirmed to enter 'LOCK WAIT' state in information_schema.innodb_trx.
+2. performance_schema.data_locks confirmed Session 2 LOCK_STATUS = 'WAITING' on JOURNEY 101.
+3. Session 1 obtained CONFIRMED status for the single seat in Class 2.
+4. Session 2 unblocked only after Session 1 COMMIT, observed 0 available seats, and was safely WAITLISTED.
+5. Zero duplicate seat allocations; all 7 database invariants evaluated with 0 violations.

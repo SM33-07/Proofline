@@ -1,0 +1,9 @@
+=== FIXTURE R-01: UNSAFE RACE CONDITION DEMONSTRATION ===
+Timestamp: 2026-10-24T22:09:54.0514768+05:30
+Configuration: 2 worker threads, 1 physical seat, un-synchronized inventory
+Coordination: StartGate (release) + ReadBarrier (interleaved check)
+Thread 1 Result: Status=CONFIRMED, PNR=PNR-UNSAFE-01
+Thread 2 Result: Status=CONFIRMED, PNR=PNR-UNSAFE-02
+Observed Confirmed Bookings: 2
+Observed Remaining Seats: -1
+Defect Proven: Over-allocation occurred! Initial seats: 1, Confirmed: 2 (INV-01 Violated in Unsafe Inventory)

@@ -1,0 +1,14 @@
+{
+  "fixtureId": "D-13-parity-benchmark",
+  "ruleId": "IRCTC_RULE_6_LATE_3H",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "outcome": "ELIGIBLE",
+  "reasonCodes": ["DELAY_OVER_THRESHOLD", "FILED_BEFORE_DEPARTURE"],
+  "warnings": ["PASSENGER_STATUS_SELF_REPORTED"],
+  "deadlineAt": "2026-11-03T14:45:00+05:30",
+  "actionCode": "MODELLED_TDR_FILED_BEFORE_DEPARTURE",
+  "currency": "INR",
+  "refundAmount": "1500.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

@@ -1,0 +1,42 @@
+====================================================
+Running BoundedFIFOQueue Monitor Verification Tests
+====================================================
+
+Test: Basic FIFO Ordering
+  [PASS] Queue size is 3
+  [PASS] First out is Item-1
+  [PASS] Second out is Item-2
+  [PASS] Third out is Item-3
+  [PASS] Queue is empty after draining
+
+Test: Capacity Bounds Validation
+  [PASS] Rejected zero capacity
+  [PASS] Rejected null item
+
+Test: Producer Blocks When Queue is Full
+  [PASS] Producer is blocked waiting for space
+  [PASS] Queue size remains at capacity (2)
+  [PASS] Consumer took item A
+  [PASS] Producer unblocked and finished putting item C
+  [PASS] Queue has 2 items now (B and C)
+
+Test: Consumer Blocks When Queue is Empty
+  [PASS] Consumer is blocked waiting for item
+  [PASS] Consumer unblocked and received 'Hello'
+
+Test: Multi-Threaded Contention (4 Producers, 4 Consumers, 1000 items)
+  [PASS] All 1000 items produced and consumed without loss
+  [PASS] Queue completely drained to 0
+
+Test: Graceful Shutdown (Rejects New, Drains Existing)
+  [PASS] Queue isShutdown is true
+  [PASS] New put rejected with IllegalStateException after shutdown
+  [PASS] Can take existing Item-1 after shutdown
+  [PASS] Can take existing Item-2 after shutdown
+  [PASS] take() on empty shutdown queue returns null
+
+Test: Repeated Producer-Consumer Cycles (5 cycles of 500 items, zero deadlocks/loss)
+  [PASS] All 5 repeated producer-consumer cycles completed with zero deadlocks and zero lost items (2500 items total)
+----------------------------------------------------
+Queue Tests Completed: 22/22 passed.
+====================================================

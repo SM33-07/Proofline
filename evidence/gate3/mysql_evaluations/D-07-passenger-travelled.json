@@ -1,0 +1,16 @@
+{
+  "fixtureId": "D-07-passenger-travelled",
+  "ruleId": "IRCTC_RULE_6_LATE_3H",
+  "ruleFamily": "LATE_OVER_3_HOURS_E_TICKET",
+  "ruleVersion": 2,
+  "outcome": "NOT_ELIGIBLE",
+  "reasonCodes": [
+    "PASSENGER_TRAVELLED"
+  ],
+  "warnings": [],
+  "deadlineAt": null,
+  "actionCode": "NO_ACTION_INELIGIBLE",
+  "currency": "INR",
+  "refundAmount": "0.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

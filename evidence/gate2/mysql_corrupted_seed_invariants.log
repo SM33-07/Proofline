@@ -1,0 +1,12 @@
+title
+========================================================================
+title
+INJECTING SYNTHETIC DEFECTS TO VERIFY SENSITIVITY OF run_invariants()
+title
+========================================================================
+title
+--- Running Invariant Evaluation on Corrupted Database ---
+inv01_capacity_violations	inv02_seat_exclusivity_violations	inv03_status_allocation_violations	inv04_waitlist_cardinality_violations	inv05_passenger_journey_violations	inv06_audit_trail_violations	inv07_waitlist_ordering_violations	total_violations
+1	0	1	1	0	1	1	5
+total_detected_violations
+5

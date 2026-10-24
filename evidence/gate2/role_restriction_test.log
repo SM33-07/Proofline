@@ -1,0 +1,60 @@
+================================================================================
+LEAST-PRIVILEGE ROLE PERMISSION ENFORCEMENT TEST (NFR-11)
+================================================================================
+--- 1. ACTIVE GRANTS FOR ROLES ---
+Grants for railsync_reader@localhost
+GRANT USAGE ON *.* TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`booking` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`journey_class` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`journey` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`train` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`v_journey_occupancy` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`v_latest_case_evaluation` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`v_passenger_contacts` TO `railsync_reader`@`localhost`
+GRANT SELECT ON `railsync`.`v_waitlist_order` TO `railsync_reader`@`localhost`
+Grants for railsync_writer@localhost
+GRANT USAGE ON *.* TO `railsync_writer`@`localhost`
+GRANT EXECUTE ON PROCEDURE `railsync`.`book_group` TO `railsync_writer`@`localhost`
+GRANT EXECUTE ON PROCEDURE `railsync`.`book_seat` TO `railsync_writer`@`localhost`
+GRANT EXECUTE ON PROCEDURE `railsync`.`cancel_booking` TO `railsync_writer`@`localhost`
+GRANT EXECUTE ON FUNCTION `railsync`.`calculate_fare` TO `railsync_writer`@`localhost`
+GRANT EXECUTE ON FUNCTION `railsync`.`occupancy_pct` TO `railsync_writer`@`localhost`
+Grants for railsync_admin@localhost
+GRANT USAGE ON *.* TO `railsync_admin`@`localhost`
+GRANT ALL PRIVILEGES ON `railsync`.* TO `railsync_admin`@`localhost`
+
+--------------------------------------------------------------------------------
+--- 2. TESTING railsync_reader ACCOUNT (Expected: Read-only access) ---
+--------------------------------------------------------------------------------
+[PERMITTED] SELECT on view v_journey_occupancy: ExitCode=0
+  Result: journey_id	train_number	train_name	departure_date	journey_class_id	class_code	total_seats	confirmed_seats	available_seats	occupancy_pct
+101	12951	Rajdhani Express	2026-11-01	3	GN	0	0	0	NULL
+[PROHIBITED] Direct INSERT into BOOKING: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: INSERT command denied to user 'railsync_reader'@'localhost' for table 'booking'
+[PROHIBITED] Direct DELETE from BOOKING: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: DELETE command denied to user 'railsync_reader'@'localhost' for table 'booking'
+[PROHIBITED] DDL DROP TABLE BOOKING: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: DROP command denied to user 'railsync_reader'@'localhost' for table 'booking'
+--------------------------------------------------------------------------------
+--- 3. TESTING railsync_writer ACCOUNT (Expected: Procedure execution only) ---
+--------------------------------------------------------------------------------
+[PERMITTED] Stored Procedure Execution book_seat: ExitCode=0
+  Result: pnr	status
+PNR-00000001	CONFIRMED
+[PROHIBITED] Direct DELETE from BOOKING: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: DELETE command denied to user 'railsync_writer'@'localhost' for table 'booking'
+[PROHIBITED] DDL DROP TABLE BOOKING: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: DROP command denied to user 'railsync_writer'@'localhost' for table 'booking'
+[PROHIBITED] DDL ALTER TABLE JOURNEY: ExitCode=1
+  Error message: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1142 (42000) at line 1: ALTER command denied to user 'railsync_writer'@'localhost' for table 'journey'
+================================================================================
+CONCLUSION: Least Privilege Access Control VERIFIED.
+All prohibited operations were rejected with MySQL Error 1142 (command denied).
+Permitted operations executed successfully with exit code 0.
+================================================================================

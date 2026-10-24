@@ -1,0 +1,17 @@
+InvariantCheck
+--- Evaluating Invariant INV-01: Confirmed <= Total Seats ---
+journey_class_id	class_code	total_seats	confirmed_seats	result
+1	SL	5	1	PASS
+2	3A	1	1	PASS
+3	GN	0	0	PASS
+4	SL	5	0	PASS
+InvariantCheck
+--- Evaluating Invariant INV-02: Seat Exclusivity ---
+InvariantCheck
+--- Evaluating Invariant INV-03: Status-Allocation Cardinality ---
+InvariantCheck
+--- Evaluating Invariant INV-04: Waitlist Cardinality ---
+InvariantCheck
+--- Evaluating Invariant INV-05: Passenger Single Confirmation per Journey ---
+InvariantCheck
+--- Evaluating Invariant INV-06: Audit Trail Completeness ---

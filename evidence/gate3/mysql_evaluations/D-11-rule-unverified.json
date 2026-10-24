@@ -1,0 +1,16 @@
+{
+  "fixtureId": "D-11-rule-unverified",
+  "ruleId": "UNVERIFIED_TEST_RULE",
+  "ruleFamily": "UNVERIFIED_FAMILY",
+  "ruleVersion": 1,
+  "outcome": "UNRESOLVED",
+  "reasonCodes": [
+    "RULE_SOURCE_UNVERIFIED"
+  ],
+  "warnings": [],
+  "deadlineAt": null,
+  "actionCode": "NO_ACTION_UNRESOLVED",
+  "currency": "INR",
+  "refundAmount": "0.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}

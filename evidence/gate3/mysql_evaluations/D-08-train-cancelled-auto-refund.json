@@ -1,0 +1,16 @@
+{
+  "fixtureId": "D-08-train-cancelled-auto-refund",
+  "ruleId": "IRCTC_RULE_5A_CANCEL",
+  "ruleFamily": "TRAIN_CANCELLED_E_TICKET",
+  "ruleVersion": 1,
+  "outcome": "ELIGIBLE",
+  "reasonCodes": [
+    "TRAIN_CANCELLED_AUTO_REFUND"
+  ],
+  "warnings": [],
+  "deadlineAt": null,
+  "actionCode": "NO_TDR_REQUIRED",
+  "currency": "INR",
+  "refundAmount": "1250.00",
+  "disclaimer": "Simulated guidance based on the rule version shown. This is not an official refund decision. This system does not file a TDR or guarantee a refund."
+}
