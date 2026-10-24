@@ -1,12 +1,12 @@
 # Implementation Plan — Railway Reservation Simulator with Disruption Refund Advisor
 
-**Project:** RailSync — CSC2104 Java OOP + CSC2131 RDBMS Lab  
-**Institution:** Manipal University Jaipur — Department of Computer Science & Engineering  
-**SRS Baseline:** v0.2 (24 October 2026, Single Source of Truth)  
-**Plan Date:** 24 October 2026  
-**Revision:** 1.1 (Revised following Lead Architecture Review)  
-**Author:** Lead Engineer & Build Agent  
-**Status:** Conditional Approval Pending Pre-Implementation Checklist Sign-Off  
+**Project:** RailSync — CSC2104 Java OOP + CSC2131 RDBMS Lab
+**Institution:** Manipal University Jaipur — Department of Computer Science & Engineering
+**Candidate SRS Baseline:** Revision 1.0 (24 October 2026, `docs/srs/v1.0/RailSync_SRS_Final.pdf`; pending Section 15 sign-off; historical baseline: v0.2 in `docs/srs/v0.2/`)
+**Plan Date:** 24 October 2026
+**Revision:** 1.1 (Revised following Lead Architecture Review)
+**Author:** Lead Engineer & Build Agent
+**Status:** Conditional Approval Pending Pre-Implementation Checklist Sign-Off
 
 ---
 
@@ -212,8 +212,13 @@ All requirements from SRS v0.2 §4 are inventoried below with assigned priority,
 ```
 RailSync/
 ├── docs/
-│   ├── SRS.md                              # Authoritative requirements baseline
-│   ├── SRS_Source_v0.2.pdf                 # Original PDF specification
+│   ├── srs/
+│   │   ├── v0.2/
+│   │   │   ├── SRS_Source_v0.2.pdf         # Historical v0.2 PDF specification
+│   │   │   ├── SRS.md                      # Historical extracted v0.2 Markdown
+│   │   │   └── SRS_extracted.txt           # Historical extracted v0.2 plain text
+│   │   └── v1.0/
+│   │       └── RailSync_SRS_Final.pdf      # Candidate authoritative SRS Rev 1.0
 │   ├── IMPLEMENTATION_PLAN.md              # Master engineering & execution plan (Rev 1.1)
 │   ├── DECISIONS.md                        # Architectural decisions & resolutions
 │   ├── TRACEABILITY.md                     # Traceability matrix: Req -> File -> Test -> Evidence
@@ -459,15 +464,15 @@ $$\mathbf{JOURNEY} \longrightarrow \mathbf{JOURNEY\_CLASS} \longrightarrow \math
 **Mandatory Rule:** The very first data-access statement inside `book_seat` MUST acquire an exclusive row lock on the parent `JOURNEY` row:
 ```sql
 -- Step 1: Mandatory parent lock
-SELECT journey_id INTO v_dummy 
-FROM JOURNEY 
-WHERE journey_id = p_journey_id 
+SELECT journey_id INTO v_dummy
+FROM JOURNEY
+WHERE journey_id = p_journey_id
 FOR UPDATE;
 
 -- Step 2: Journey Class lock
 SELECT journey_class_id, total_seats INTO v_class_id, v_total_seats
-FROM JOURNEY_CLASS 
-WHERE journey_class_id = p_journey_class_id 
+FROM JOURNEY_CLASS
+WHERE journey_class_id = p_journey_class_id
 FOR UPDATE;
 ```
 *Rationale:* Locking `JOURNEY` first serializes all booking attempts on that journey across all classes. This is strictly required to prevent a race condition against Invariant `INV-05`, where two concurrent transactions could otherwise confirm the same passenger in two different classes (e.g., Sleeper and AC) simultaneously if only class-level locks were taken.

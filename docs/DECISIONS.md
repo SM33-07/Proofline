@@ -1,8 +1,8 @@
 # Architecture Decisions and Resolutions (ADR) — RailSync
 
-**Baseline SRS:** v0.2 (24 October 2026)  
-**Date:** 24 October 2026  
-**Status:** Approved & Implemented in Revision 1.1 of Implementation Plan  
+**Candidate Baseline SRS:** Revision 1.0 (24 October 2026, candidate authoritative baseline pending Section 15 sign-off; historical baseline: v0.2 in `docs/srs/v0.2/`)
+**Date:** 24 October 2026 (Updated 25 October 2026)
+**Status:** Existing architectural decisions documented; reconciliation with candidate SRS v1.0 in progress. Formal SRS v1.0 sign-off remains pending.
 
 ---
 
@@ -260,3 +260,32 @@ Gate 3 requires implementing independent rule evaluators in Java OOP (Tier 1) an
    - `warnings`: Sorted alphabetically.
 4. **Monetary Precision:** Strings with exactly 2 decimal places and Half-Up rounding. Non-eligible outcomes always emit `"0.00"`.
 5. **Clock Isolation:** Rule matching and event validity depend strictly on explicit fixture timestamps (`policyApplicabilityTime`, `evaluationTime`). `NOW()` and `currentTimeMillis()` are strictly prohibited in evaluation logic.
+
+---
+
+## 18. ADR-18: Adoption of Candidate SRS Revision 1.0 as Requirements Baseline
+
+### Context
+RailSync development throughout Gates 1–3 was planned and executed against SRS Revision 0.2 (24 October 2026). On 25 October 2026, the project received a candidate specification, `RailSync_SRS_Final.pdf` (Revision 1.0, 24 October 2026, 35 pages), authored by Soham More for CSC2104 (OOP in Java) and CSC2131 (RDBMS Lab) at Manipal University Jaipur.
+
+A requirements-reconciliation audit of Revision 1.0 identified significant specification evolution from Revision 0.2:
+1. **Relational Schema Consolidation:** Mandates exactly 15 InnoDB tables (merging rule versions, applicability intervals, and criteria directly into `REFUND_RULE`, guarded by a `BEFORE INSERT` overlap trigger `FR-D03`). This supersedes the 17-table model in active code (`PNR_SEQUENCE`, separate `REFUND_RULE_FAMILY` and `RULE_VERSION`).
+2. **Invariant `INV-08` Added:** Introduces strict cross-table integrity between `SEAT_ALLOCATION`, `BOOKING`, and `JOURNEY_CLASS` (`journey_id` and `passenger_id` alignment).
+3. **Refund Evaluation Decision Ordering:** Mandates that decisive negative criteria (delay $\le 180$ minutes, passenger travelled) must be evaluated strictly prior to filing-window deadlines.
+4. **Prospective Refund Mode:** Introduces prospective evaluation for trains $>180$ minutes late that have not yet departed (`ACTUAL_DEPARTURE_PENDING`, action `FILE_TDR_BEFORE_ACTUAL_DEPARTURE`).
+5. **Fixture Expansion:** Reservation fixtures expand from 10 to 15 (`R-01` through `R-15`); disruption refund fixtures expand from 14 to 17 (`D-01` through `D-17`).
+6. **Tier 3 Web Extension Status:** Sections 2.1 and 16.1 explicitly designate the Next.js web application and Java HTTP API as **Future Scope (Deferred)**.
+
+Crucially, Section 15 of Revision 1.0 contains eight unchecked prerequisite checkboxes (official CSC2104 course handout, faculty acceptance of MySQL for CSC2131, concurrency test harness sign-off, live IRCTC refund policy source review, etc.). The document itself does not contain instructor sign-off or external institutional verification.
+
+### Decision
+1. **Candidate Baseline Adoption:** Adopt SRS Revision 1.0 (`docs/srs/v1.0/RailSync_SRS_Final.pdf`, SHA-256 `B7C14EB4EFF4B20A6FBC291094BA533FFB8635B99E8A77E762244E4B2624DEE9`) as the **candidate authoritative requirements baseline** for RailSync requirements reconciliation and implementation planning.
+2. **Document Status Classification:** Formally classify Revision 1.0 as a *candidate authoritative baseline for reconciliation*, not as a formally signed-off academic specification. The eight open prerequisites in Section 15 remain unresolved external dependencies.
+3. **Historical Documentation Preservation:** Preserve the complete set of historical Revision 0.2 artifacts (`SRS_Source_v0.2.pdf`, `SRS.md`, `SRS_extracted.txt`) under `docs/srs/v0.2/` to maintain the audit trail for earlier Gate 1–3 development.
+4. **Tier 3 Sequencing and Deferral:** In strict adherence to Revision 1.0 §2.1 and §16.1, Tier 3 (Next.js web UI and Java HTTP API) remains deferred. No web scaffolding or HTTP API coding is permitted until all Tier 1 (Java OOP) and Tier 2 (MySQL RDBMS) implementation, concurrency, transaction, and parity acceptance criteria have been verified against Revision 1.0.
+5. **No Premature Compliance Claims:** Prior Gate 1–3 test runs and evidence logs demonstrate progress under SRS v0.2, but they do not constitute verified compliance with Revision 1.0. Full compliance may only be claimed after the code and schemas are updated to Revision 1.0 and tests are rerun against the expanded fixtures.
+6. **Change Traceability Rule:** All future implementation changes, schema migrations, and test expansions must be traceable to a specific Revision 1.0 requirement ID (`INV-01`..`INV-08`, `BR-01`..`BR-10`, `FR-R01`..`FR-R20`, `FR-D01`..`FR-D11`, `NFR-01`..`NFR-11`, `R-01`..`R-15`, `D-01`..`D-17`) or an approved architectural decision.
+
+### Traceability
+- Supersedes the working status of SRS v0.1, v0.2, and v0.3 drafts.
+- Governs requirements reconciliation and implementation planning for Milestones M1 through M4.
