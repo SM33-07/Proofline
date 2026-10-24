@@ -6,7 +6,7 @@ USE railsync;
 
 -- View 1: Journey Occupancy View
 CREATE OR REPLACE VIEW v_journey_occupancy AS
-SELECT 
+SELECT
     j.journey_id,
     t.train_number,
     t.train_name,
@@ -26,7 +26,7 @@ GROUP BY j.journey_id, t.train_number, t.train_name, j.departure_date, jc.journe
 
 -- View 2: Deterministic FIFO Waitlist Order View (FR-R06)
 CREATE OR REPLACE VIEW v_waitlist_order AS
-SELECT 
+SELECT
     we.waitlist_id,
     we.journey_class_id,
     we.waitlist_position,
@@ -42,10 +42,10 @@ ORDER BY we.journey_class_id ASC, we.waitlist_position ASC, b.booked_at ASC, b.b
 
 -- View 3: Latest Disruption Case Evaluation View
 CREATE OR REPLACE VIEW v_latest_case_evaluation AS
-SELECT 
+SELECT
     ce.evaluation_id,
     ce.case_id,
-    ce.rule_version_id,
+    ce.rule_id,
     ce.evaluation_time,
     ce.outcome,
     ce.deadline_action,
@@ -61,7 +61,7 @@ INNER JOIN (
 
 -- View 4: Appropriately Updatable View for Passenger Contact Updates
 CREATE OR REPLACE VIEW v_passenger_contacts AS
-SELECT 
+SELECT
     passenger_id,
     full_name,
     email,

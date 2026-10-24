@@ -289,3 +289,67 @@ Crucially, Section 15 of Revision 1.0 contains eight unchecked prerequisite chec
 ### Traceability
 - Supersedes the working status of SRS v0.1, v0.2, and v0.3 drafts.
 - Governs requirements reconciliation and implementation planning for Milestones M1 through M4.
+
+
+---
+
+## 19. ADR-19: Schema Consolidation, PNR Column Width (VARCHAR(24)), and Relational Integrity (INV-08)
+
+### Context
+Milestone M1.3 implements the candidate SRS Revision 1.0 §6.1 relational model, consolidating the database into exactly 15 application tables:
+`PASSENGER`, `TRAIN`, `JOURNEY`, `JOURNEY_CLASS`, `JOURNEY_SEAT`, `BOOKING`, `SEAT_ALLOCATION`, `WAITLIST_ENTRY`, `BOOKING_AUDIT`, `REFUND_RULE`, `DISRUPTION_CASE`, `CASE_EVENT`, `CASE_EVALUATION`, `CASE_EVALUATION_CODE`, and `CASE_EVALUATION_EVENT`.
+
+During the design review, implementation, and closure audit for M1.3, the following technical and specification items were established:
+
+1. **PNR Column Width Limitation (`VARCHAR(20)` vs `VARCHAR(24)`):**
+   - Candidate SRS Revision 1.0 §6.1 specifies `pnr VARCHAR(20) UNIQUE`.
+   - In accordance with Candidate SRS §6.1 and FR-R02, PNRs are derived directly from the `BOOKING` auto-increment `booking_id` using the format `PNR-%08d` (e.g. `PNR-00000001`).
+   - The underlying `booking_id` is typed as `BIGINT`, supporting values up to $9,223,372,036,854,775,807$ (19 decimal digits).
+   - When formatted, `PNR-` (4 characters) concatenated with up to 19 digits yields a string of up to 23 characters (e.g. `PNR-9223372036854775807`).
+   - Inserting a 23-character string into `VARCHAR(20)` triggers MySQL error `1406 (22001)` (`Data too long for column 'pnr' at row 1`).
+   - Truncating the generated string to 20 characters violates monotonicity and produces fatal key collisions (e.g. `PNR-10000000000000001` and `PNR-10000000000000002` both truncating to `PNR-1000000000000000`).
+   - In InnoDB, `VARCHAR(20)` and `VARCHAR(24)` under utf8mb4 both utilize a single-byte length prefix (for column lengths $< 256$ bytes). Allocating `VARCHAR(24)` incurs zero physical storage or memory overhead for smaller strings while guaranteeing safety across the entire signed `BIGINT` range.
+
+2. **Foreign-Key Structure and Relational Integrity (`INV-08`):**
+   - Candidate SRS §6.1 declares `BOOKING` with `PRIMARY KEY (booking_id)` and `UNIQUE KEY (pnr)`. It does not declare a unique key over `(booking_id, journey_class_id, passenger_id)`.
+   - Consequently, `SEAT_ALLOCATION` declares a single-column foreign key `fk_alloc_booking (booking_id) REFERENCES BOOKING(booking_id)`.
+   - Composite foreign keys are declared where supported by unique keys in the physical model:
+     - `fk_alloc_seat_composite`: `(journey_seat_id, journey_class_id) REFERENCES JOURNEY_SEAT(journey_seat_id, journey_class_id)`
+     - `fk_alloc_jc_composite`: `(journey_class_id, journey_id) REFERENCES JOURNEY_CLASS(journey_class_id, journey_id)`
+   - Because `fk_alloc_booking` references only `booking_id`, the DDL constraints alone do not prevent an allocation row from having a passenger or journey class that differs from its booking.
+   - Candidate SRS §3.3 introduces Invariant `INV-08` to enforce this cross-table topological consistency. A robust verification query must traverse both paths simultaneously:
+     - Path 1: `SEAT_ALLOCATION` -> `BOOKING` -> `JOURNEY_CLASS` (`b_jc`)
+     - Path 2: `SEAT_ALLOCATION` -> `JOURNEY_SEAT` -> `JOURNEY_CLASS` (`s_jc`)
+   - The join predicate verifies that `sa.passenger_id = b.passenger_id`, `sa.journey_id = b_jc.journey_id`, `sa.journey_id = s_jc.journey_id`, `b.journey_class_id = js.journey_class_id`, `b.status = 'CONFIRMED'`, and that no orphan allocation references exist.
+
+3. **PNR Assignment Timing and Audit Purity:**
+   - Candidate SRS FR-R02 mandates that a `PENDING` booking possesses a generated unique PNR.
+   - Inserting `BOOKING` with `pnr = NULL` in status `PENDING`, capturing `LAST_INSERT_ID()`, deriving `PNR-%08d`, and immediately updating `pnr` before allocation or waitlist processing satisfies FR-R02.
+   - Because the status remains `PENDING` during this update (`OLD.status = 'PENDING'` and `NEW.status = 'PENDING'`), the `trg_booking_audit_update` trigger does not fire, preserving audit trail purity (zero spurious audit entries).
+
+4. **Refund-Rule Effective Interval Overlap Guard (FR-D03):**
+   - Candidate SRS FR-D03 mandates: *"Enforce through a BEFORE INSERT trigger that no two active refund rules in the same family have overlapping effective intervals `[effective_from, effective_to)`. Adjacent intervals are permitted."*
+   - The trigger `trg_refund_rule_overlap_guard` is implemented as a `BEFORE INSERT` trigger on `REFUND_RULE`. It evaluates half-open intervals `[effective_from, effective_to)` for active rules (`NEW.is_active = TRUE`), treating `effective_to IS NULL` as an open-ended interval.
+   - Candidate SRS FR-D03 specifies only a `BEFORE INSERT` trigger; it does not specify a `BEFORE UPDATE` trigger.
+
+### Decision
+1. **15-Table Physical Schema:** Consolidate into exactly 15 application tables. Drop `PNR_SEQUENCE` and `RULE_VERSION`. Fold rule versioning directly into `REFUND_RULE` (`version`, `is_active`, `verified`, `threshold_minutes`, `refund_basis_pct`, `effective_from`, `effective_to`).
+2. **PNR Column Definition (`VARCHAR(24)`):** Amend `BOOKING.pnr` from `VARCHAR(20)` to `VARCHAR(24) UNIQUE NOT NULL`. This is formally documented as a physical schema deviation from Candidate SRS §6.1. The frozen canonical contract `docs/CANONICAL_CONTRACT.md` remains untouched.
+3. **Monotonic Formatting Implementation:** In all MySQL stored procedures (`book_seat`, `book_group`) and test scripts, generate PNRs via:
+   `CONCAT('PNR-', LPAD(booking_id, GREATEST(8, LENGTH(booking_id)), '0'))`
+   This preserves exact byte parity with Java's `String.format("PNR-%08d", id)` across all integer sizes from 1 to 2^63-1.
+4. **Foreign-Key and Invariant Structure:**
+   - `SEAT_ALLOCATION` maintains a single-column foreign key to `BOOKING(booking_id)` (matching Candidate SRS §6.1 declared keys), alongside composite foreign keys to `JOURNEY_SEAT(journey_seat_id, journey_class_id)` and `JOURNEY_CLASS(journey_class_id, journey_id)`.
+   - Invariant `INV-08` is enforced across both `08_invariants.sql` and the `run_invariants` procedure using the dual-path join traversing both booking-class and physical seat-class relationships.
+5. **Half-Open Effective Interval Trigger:** Enforce `trg_refund_rule_overlap_guard` as a `BEFORE INSERT` trigger on `REFUND_RULE` evaluating half-open intervals `[effective_from, effective_to)` among active rules in the same family. Treat `effective_to IS NULL` as open-ended, allow adjacent intervals (`r1.effective_to = r2.effective_from`), and reject active overlaps with SQLSTATE `45000`.
+6. **Transaction Isolation & Savepoint Rollback Semantics:**
+   - In group booking (`book_group`), recoverable member failures execute `ROLLBACK TO SAVEPOINT sp_member_2; SET p_member2_rolled_back = TRUE;` allowing subsequent members to proceed.
+   - Auto-increment IDs consumed by rolled-back members are burned, creating intentional sequence gaps.
+   - Unexpected SQL/infrastructure errors are caught by `DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;`, rolling back the outer transaction and re-signalling the exception.
+
+### Evidence & Database Integrity Note
+- **Disposable Database (`railsync_m1_isolated_test`):** During M1.3 validation script testing, a cleanup operation executed `TRUNCATE TABLE BOOKING_AUDIT` in `railsync_m1_isolated_test`. Pre-existing rows in that table were removed; consequently, historical audit records prior to that test step in this disposable database cannot be treated as intact evidence. All subsequent tests independently verified fresh audit insertion, status transition logging, and rollback omission against newly created bookings.
+
+### Traceability
+- Candidate SRS Revision 1.0 §6.1, FR-R02, FR-D03, INV-08.
+- Amends ADR-7 and ADR-14 with respect to MySQL sequence table removal and PNR column width.

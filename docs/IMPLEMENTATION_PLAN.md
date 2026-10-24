@@ -79,7 +79,7 @@ All requirements from SRS v0.2 §4 are inventoried below with assigned priority,
 | Req ID | Requirement Summary | Priority | Track | Target Gate | Primary Artifact / Verification |
 |---|---|---|---|---|---|
 | **FR-R01** | Model `TRAIN`, `JOURNEY`, `JOURNEY_CLASS`, `JOURNEY_SEAT`. Support $\ge$2 trains, 3 classes (Sleeper `SL`, AC 3-Tier `3A`, General `GN`). Include zero-seat and one-seat classes in seed fixtures. | Must | A + B | Gate 1 | `model/*.java`, `01_tables.sql`, `02_seed.sql` |
-| **FR-R02** | Allocate unique alphanumeric PNR on booking creation (state `PENDING`) from a monotonic non-recycling sequence. Never reuse or recycle PNRs. If a transaction or savepoint rolls back, the allocated PNR is consumed and abandoned, leaving an intentional gap in the sequence. | Must | A + B | Gate 1 | `PnrGenerator.java`, MySQL auto-increment sequence table, Fixture `R-09` |
+| **FR-R02** | Allocate unique alphanumeric PNR on booking creation (state `PENDING`) from a monotonic non-recycling sequence. Never reuse or recycle PNRs. If a transaction or savepoint rolls back, the allocated PNR is consumed and abandoned, leaving an intentional gap in the sequence. | Must | A + B | Gate 1 | `PnrGenerator.java`, MySQL BOOKING auto-increment ID (ADR-19), Fixture `R-09` |
 | **FR-R03** | Enforce 1 booking = 1 seat. Model group reservations as separate individual bookings sharing a common `group_ref` UUID/string. | Must | A + B | Gate 1, 2 | `Booking.java`, `book_group`, Fixture `R-08` |
 | **FR-R04** | Check inventory atomically under parent locks: confirm if available seats exist; otherwise set status to `WAITLISTED` with deterministic position. `WAITLISTED` is a normal domain outcome, not an exception. | Must | A + B | Gate 1 | `InMemoryBookingService.java`, `book_seat` |
 | **FR-R05** | Enforce invariant: at most one `CONFIRMED` booking per passenger per journey across all classes. Waitlisted bookings in other classes are permitted. | Must | A + B | Gate 1, 2 | `INV-05`, `SEAT_ALLOCATION` unique key `(passenger_id, journey_id)`, Java monitor validation |
@@ -319,7 +319,7 @@ RailSync/
 │           └── ConcurrencyStressTest.java  # 100-repetition 10-thread race test
 ├── mysql/
 │   ├── 00_reset.sql                        # Clean schema teardown / recreate database
-│   ├── 01_tables.sql                       # 16 InnoDB tables with CHECK constraints
+│   ├── 01_tables.sql                       # 15 InnoDB tables with CHECK constraints (Candidate SRS §6.1)
 │   ├── 02_seed.sql                         # Canonical seed data (trains, classes, rules)
 │   ├── 03_views.sql                        # 4 reporting & updatable views
 │   ├── 04_functions.sql                    # calculate_fare, occupancy_pct
@@ -749,7 +749,7 @@ Python script `tools/check_parity.py` runs both `java -cp bin railsync.test.Disr
 | **ISS-10** | Floating-Point Parity on Currency | Potential rounding differences between Java `double` and MySQL `DECIMAL(10,2)`. | All monetary amounts must be stored as `DECIMAL(10,2)` in SQL and represented as `BigDecimal` or fixed 2-decimal formatted strings in canonical JSON (`"1250.00"`). |
 | **ISS-11** | Lock Ordering Hierarchy in Concurrency | Risk of deadlocks and `INV-05` races if class row is locked before journey row. | Mandate strict hierarchical locking: `JOURNEY` first, then `JOURNEY_CLASS`. Locking `JOURNEY` first serializes cross-class bookings for the same passenger. |
 | **ISS-12** | Booking Lifecycle State Transitions | Shorthand omitted valid transition `PENDING` $\rightarrow$ `CANCELLED`. | Explicitly adopt full SRS transition table including `PENDING` $\rightarrow$ `CANCELLED`. All other non-enumerated transitions are rejected. |
-| **ISS-13** | PNR Persistence Across Application Restarts | Memory-only counter resets on JVM restart, risking duplicate PNR issuance across runs. | In Java, `PnrGenerator` persists highest issued sequence to `data/pnr_sequence.dat`. In MySQL, powered by `PNR_SEQUENCE` auto-increment table. Monotonic, permanent, gaps on rollback. |
+| **ISS-13** | PNR Persistence Across Application Restarts | Memory-only counter resets on JVM restart, risking duplicate PNR issuance across runs. | In Java, `PnrGenerator` persists highest issued sequence to `data/pnr_sequence.dat`. In MySQL, powered directly by `BOOKING` auto-increment ID (ADR-19, Candidate SRS §6.1). Monotonic, permanent, gaps on rollback. |
 | **ISS-14** | Java Audit Log Transactional Commit Boundary | File logger cannot rollback written disk entries on subsequent runtime error. | Implement staged commit boundary: `InMemoryBookingService` buffers audit records during execution; flushes to file logger only when transaction completes successfully; discards on error. |
 | **ISS-15** | Cross-Table Trigger Circular Dependency | Mutually-referencing row triggers on `BOOKING` and `SEAT_ALLOCATION` fail intermediate transition steps. | Enforce via procedural coordination in stored procedures + foreign key constraints + post-transaction invariant assertions (`run_invariants`), avoiding circular trigger deadlocks. |
 | **ISS-16** | Lock Hierarchy in Cancellation and Promotion | Cancellation starts from PNR, risking inverse lock order against concurrent bookings. | Enforce lookup-and-lock pattern: read IDs first without mutation, then acquire row locks in canonical order (`JOURNEY` $\rightarrow$ `JOURNEY_CLASS` $\rightarrow$ `BOOKING`), then mutate. |
@@ -784,3 +784,19 @@ Following the Lead Architecture Review on Revision 1.0, the following items have
 6. **Target Timeline vs Acceptance Criteria:** The 3-4 day timeframe is maintained as a planning target; gate transitions require concrete technical evidence.
 
 ---
+
+## 11. Milestone Tracking & M1.3 Implementation Status
+
+### Milestone Status
+- **M0 (Documentation Migration):** Complete (Committed at `d22a2add871c2884edfe8a19dbd47450234ff815`).
+- **M1.1 (Candidate SRS v1.0 Reconciliation Audit):** Complete.
+- **M1.2 (Schema Consolidation Design Review & Disposable DB Validation):** Complete.
+- **M1.3 (Controlled MySQL Schema Consolidation and Integrity Implementation):** Implemented in isolated feature branch `feature/m1.3-schema-consolidation`.
+
+### M1.3 Implementation Summary
+1. **15 Application Tables:** Exactly 15 tables implemented in `mysql/01_tables.sql` matching Candidate SRS §6.1. Removed separate `PNR_SEQUENCE` and `RULE_VERSION` tables.
+2. **Refund Rule Consolidation & Overlap Guard:** Consolidated rule versioning directly into `REFUND_RULE`. Added `trg_refund_rule_overlap_guard` enforcing non-overlapping half-open intervals `[effective_from, effective_to)` among active rules within each rule family per Candidate SRS FR-D03 (`BEFORE INSERT`).
+3. **PNR Monotonic Generation & Column Width:** PNR derived from `BOOKING` auto-increment ID (`CONCAT('PNR-', LPAD(booking_id, GREATEST(8, LENGTH(booking_id)), '0'))`), populated immediately at status `PENDING` before allocation or waitlist processing without false audit generation. Target column defined as `VARCHAR(24)` per ADR-19 to safely store the full signed `BIGINT` range up to 19 digits.
+4. **Relational Integrity & Foreign Keys:** `SEAT_ALLOCATION` declares composite foreign keys for physical seat/class and class/journey relationships, and a single-column foreign key to `BOOKING(booking_id)`. Invariant `INV-08` enforces cross-table consistency across both booking-class and physical seat-class paths in `08_invariants.sql` and `run_invariants`.
+5. **Group Booking Savepoint Isolation:** Enforced member-level savepoints in `book_group` so recoverable member failures unwind only to the member savepoint leaving auto-increment gaps, while unexpected SQL/infrastructure errors trigger full transaction rollback via `EXIT HANDLER FOR SQLEXCEPTION`.
+6. **Disposable Database Audit Note:** A test cleanup command truncated `BOOKING_AUDIT` in `railsync_m1_isolated_test`; pre-existing audit rows were removed and cannot be treated as intact evidence. Fresh audit insertion and rollback omission were verified on subsequent test runs.

@@ -1,6 +1,7 @@
 -- ============================================================================
 -- 07_experiments.sql: Concurrency Lock-First & Savepoint Rollback Experiments
 -- RailSync Gate 2 Delivery (FR-R18, Fixtures R-03, R-08, R-09)
+-- Updated for M1.3 Schema Consolidation (PNR derived from BOOKING auto_increment)
 -- ============================================================================
 
 USE railsync;
@@ -38,21 +39,21 @@ SELECT booking_id, pnr, passenger_id, status, group_ref FROM BOOKING WHERE group
 
 -- Verify Seat Allocations (Should only exist for Members 1 and 3)
 SELECT 'Committed Seat Allocations for Group:' AS CheckDescription;
-SELECT sa.allocation_id, b.pnr, sa.passenger_id, sa.journey_seat_id 
+SELECT sa.allocation_id, b.pnr, sa.passenger_id, sa.journey_seat_id
 FROM SEAT_ALLOCATION sa
 JOIN BOOKING b ON sa.booking_id = b.booking_id
 WHERE b.group_ref = 'GRP-SAVEPOINT-TEST';
 
 -- Verify Booking Audit Rows (Zero audit rows for failed Member 2)
 SELECT 'Committed Audit Rows for Group:' AS CheckDescription;
-SELECT ba.audit_id, b.pnr, ba.from_status, ba.to_status, ba.reason 
+SELECT ba.audit_id, b.pnr, ba.from_status, ba.to_status, ba.reason
 FROM BOOKING_AUDIT ba
 JOIN BOOKING b ON ba.booking_id = b.booking_id
 WHERE b.group_ref = 'GRP-SAVEPOINT-TEST';
 
 -- Verify PNR Sequence Gap: Member 2 PNR must NOT exist in BOOKING table
 SELECT 'Verifying PNR sequence gap for discarded Member 2 PNR:' AS CheckDescription;
-SELECT CASE 
+SELECT CASE
     WHEN NOT EXISTS (SELECT 1 FROM BOOKING WHERE pnr = @pnr2) THEN 'PASS: Member 2 PNR is absent from BOOKING table (Sequence Gap Preserved)'
     ELSE 'FAIL: Member 2 PNR exists'
 END AS pnr_gap_verification;
@@ -64,24 +65,26 @@ END AS pnr_gap_verification;
 SELECT '--- EXPERIMENT 2: SQL Error Atomicity & Total Rollback (Fixture R-09) ---' AS Experiment;
 
 START TRANSACTION;
-INSERT INTO PNR_SEQUENCE () VALUES ();
-SET @r09_seq = LAST_INSERT_ID();
-SET @r09_pnr = CONCAT('PNR-', LPAD(@r09_seq, 8, '0'));
-
--- Insert booking
 INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-VALUES (@r09_pnr, 1, 4, 'PENDING', 550.00, 'GRP-FAIL-TEST');
+VALUES (NULL, 1, 4, 'PENDING', 550.00, 'GRP-FAIL-TEST');
+SET @r09_id = LAST_INSERT_ID();
+SET @r09_pnr = CONCAT('PNR-', LPAD(@r09_id, GREATEST(8, LENGTH(@r09_id)), '0'));
+UPDATE BOOKING SET pnr = @r09_pnr WHERE booking_id = @r09_id;
 
 -- Simulate fatal error: trigger explicit rollback
 ROLLBACK;
 
 SELECT 'Verifying total rollback leaves zero traces in BOOKING and BOOKING_AUDIT:' AS CheckDescription;
 SELECT COUNT(*) AS booking_count_after_rollback FROM BOOKING WHERE pnr = @r09_pnr;
-SELECT COUNT(*) AS audit_count_after_rollback FROM BOOKING_AUDIT WHERE booking_id NOT IN (SELECT booking_id FROM BOOKING);
+SELECT COUNT(*) AS audit_count_after_rollback FROM BOOKING_AUDIT WHERE booking_id = @r09_id;
 
--- Next PNR allocation to verify PNR gap:
-INSERT INTO PNR_SEQUENCE () VALUES ();
-SET @r09_next_seq = LAST_INSERT_ID();
-SET @r09_next_pnr = CONCAT('PNR-', LPAD(@r09_next_seq, 8, '0'));
+-- Next booking allocation to verify PNR gap:
+START TRANSACTION;
+INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
+VALUES (NULL, 1, 4, 'PENDING', 550.00, 'GRP-FAIL-TEST-2');
+SET @r09_next_id = LAST_INSERT_ID();
+SET @r09_next_pnr = CONCAT('PNR-', LPAD(@r09_next_id, GREATEST(8, LENGTH(@r09_next_id)), '0'));
+UPDATE BOOKING SET pnr = @r09_next_pnr WHERE booking_id = @r09_next_id;
+COMMIT;
 
 SELECT @r09_pnr AS rolled_back_pnr, @r09_next_pnr AS subsequent_pnr;

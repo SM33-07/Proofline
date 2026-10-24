@@ -92,4 +92,29 @@ BEGIN
     SET MESSAGE_TEXT = 'CASE_EVALUATION snapshots are strictly immutable; new evaluations must be inserted';
 END$$
 
+
+-- 7. Refund Rule Effective Interval Overlap Guard Trigger (FR-D03)
+DROP TRIGGER IF EXISTS trg_refund_rule_overlap_guard$$
+CREATE TRIGGER trg_refund_rule_overlap_guard
+BEFORE INSERT ON REFUND_RULE
+FOR EACH ROW
+BEGIN
+    DECLARE v_overlap_count INT DEFAULT 0;
+
+    -- Enforce non-overlapping half-open intervals [effective_from, effective_to) among active rules in same family
+    IF NEW.is_active = TRUE THEN
+        SELECT COUNT(*) INTO v_overlap_count
+        FROM REFUND_RULE
+        WHERE family_code = NEW.family_code
+          AND is_active = TRUE
+          AND (effective_to IS NULL OR NEW.effective_from < effective_to)
+          AND (NEW.effective_to IS NULL OR NEW.effective_to > effective_from);
+
+        IF v_overlap_count > 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'FR-D03 violation: Overlapping effective interval for refund rule family';
+        END IF;
+    END IF;
+END$$
+
 DELIMITER ;

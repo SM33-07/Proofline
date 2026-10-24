@@ -1,20 +1,22 @@
 -- ============================================================================
 -- 06_procedures.sql: Canonical Stored Procedures
--- Implements book_seat, cancel_booking, promote_waitlist, run_invariants
+-- Implements book_seat, cancel_booking, promote_waitlist, run_invariants,
+--            book_group, evaluate_case
 -- Strict Lock Hierarchy: JOURNEY -> JOURNEY_CLASS -> BOOKING (ADR-2, ADR-10)
+-- Schema Consolidation: 15-table Candidate SRS §6.1 model (M1.3)
 -- ============================================================================
 
 USE railsync;
 
 DELIMITER $$
 
--- Procedure 1: book_seat
+-- Procedure 1: book_seat (M1.3 PNR from BOOKING auto_increment, composite FKs)
 DROP PROCEDURE IF EXISTS book_seat$$
 CREATE PROCEDURE book_seat(
     IN p_journey_class_id BIGINT,
     IN p_passenger_id BIGINT,
     IN p_group_ref VARCHAR(50),
-    OUT p_pnr VARCHAR(20),
+    OUT p_pnr VARCHAR(24),
     OUT p_status VARCHAR(20),
     OUT p_booking_id BIGINT
 )
@@ -26,11 +28,10 @@ proc_label: BEGIN
     DECLARE v_fare DECIMAL(10,2);
     DECLARE v_seat_id BIGINT DEFAULT NULL;
     DECLARE v_next_pos INT DEFAULT 1;
-    DECLARE v_pnr_seq BIGINT;
 
     -- Step 1: Lookup parent journey_id
-    SELECT journey_id INTO v_journey_id 
-    FROM JOURNEY_CLASS 
+    SELECT journey_id INTO v_journey_id
+    FROM JOURNEY_CLASS
     WHERE journey_class_id = p_journey_class_id;
 
     IF v_journey_id IS NULL THEN
@@ -39,61 +40,56 @@ proc_label: BEGIN
 
     -- Step 2: MANDATORY HIERARCHICAL LOCK ORDERING (ADR-2)
     -- Lock 1: Parent JOURNEY row
-    SELECT journey_id INTO v_dummy 
-    FROM JOURNEY 
-    WHERE journey_id = v_journey_id 
+    SELECT journey_id INTO v_dummy
+    FROM JOURNEY
+    WHERE journey_id = v_journey_id
     FOR UPDATE;
 
     -- Lock 2: Child JOURNEY_CLASS row
     SELECT total_seats, base_fare_inr INTO v_total_seats, v_fare
-    FROM JOURNEY_CLASS 
-    WHERE journey_class_id = p_journey_class_id 
+    FROM JOURNEY_CLASS
+    WHERE journey_class_id = p_journey_class_id
     FOR UPDATE;
 
     -- Step 3: Count current confirmed allocations in this class
     SELECT COUNT(*) INTO v_confirmed_count
     FROM SEAT_ALLOCATION sa
-    JOIN JOURNEY_SEAT js ON sa.journey_seat_id = js.journey_seat_id
-    WHERE js.journey_class_id = p_journey_class_id;
+    WHERE sa.journey_class_id = p_journey_class_id;
 
-    -- Step 4: Allocate monotonic non-recycling PNR
-    INSERT INTO PNR_SEQUENCE () VALUES ();
-    SET v_pnr_seq = LAST_INSERT_ID();
-    SET p_pnr = CONCAT('PNR-', LPAD(v_pnr_seq, 8, '0'));
+    -- Step 4: Insert booking as PENDING to obtain auto-increment ID
+    INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
+    VALUES (NULL, p_journey_class_id, p_passenger_id, 'PENDING', v_fare, p_group_ref);
+    SET p_booking_id = LAST_INSERT_ID();
 
-    -- Step 5: Check Capacity & Invariants
+    -- Step 5: Derive PNR from booking ID and assign immediately (Candidate SRS §6.1, FR-R02)
+    SET p_pnr = CONCAT('PNR-', LPAD(p_booking_id, GREATEST(8, LENGTH(p_booking_id)), '0'));
+    UPDATE BOOKING SET pnr = p_pnr WHERE booking_id = p_booking_id;
+
+    -- Step 6: Check Capacity & Invariants
     IF v_confirmed_count < v_total_seats THEN
         -- Capacity available: Check INV-05 (Single CONFIRMED per passenger per journey)
         IF EXISTS (SELECT 1 FROM SEAT_ALLOCATION WHERE passenger_id = p_passenger_id AND journey_id = v_journey_id) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INV-05 violation: Passenger already confirmed on this journey';
         END IF;
 
-        -- Find next available seat in class
+        -- Find next available seat in class (deterministic ordering)
         SELECT js.journey_seat_id INTO v_seat_id
         FROM JOURNEY_SEAT js
         LEFT JOIN SEAT_ALLOCATION sa ON js.journey_seat_id = sa.journey_seat_id
         WHERE js.journey_class_id = p_journey_class_id AND sa.allocation_id IS NULL
+        ORDER BY js.journey_seat_id ASC
         LIMIT 1;
-
-        -- Create booking as PENDING
-        INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-        VALUES (p_pnr, p_journey_class_id, p_passenger_id, 'PENDING', v_fare, p_group_ref);
-        SET p_booking_id = LAST_INSERT_ID();
 
         -- Transition PENDING -> CONFIRMED
         UPDATE BOOKING SET status = 'CONFIRMED' WHERE booking_id = p_booking_id;
         SET p_status = 'CONFIRMED';
 
-        -- Create seat allocation
-        INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, passenger_id, journey_id)
-        VALUES (p_booking_id, v_seat_id, p_passenger_id, v_journey_id);
+        -- Create seat allocation with composite foreign key columns (Candidate SRS §6.1)
+        INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, journey_class_id, passenger_id, journey_id)
+        VALUES (p_booking_id, v_seat_id, p_journey_class_id, p_passenger_id, v_journey_id);
 
     ELSE
         -- Class is full or zero-seat: route to WAITLISTED
-        INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-        VALUES (p_pnr, p_journey_class_id, p_passenger_id, 'PENDING', v_fare, p_group_ref);
-        SET p_booking_id = LAST_INSERT_ID();
-
         -- Determine next waitlist position
         SELECT COALESCE(MAX(waitlist_position), 0) + 1 INTO v_next_pos
         FROM WAITLIST_ENTRY
@@ -112,7 +108,7 @@ END$$
 -- Procedure 2: cancel_booking (Lookup-and-lock pattern ADR-10)
 DROP PROCEDURE IF EXISTS cancel_booking$$
 CREATE PROCEDURE cancel_booking(
-    IN p_pnr VARCHAR(20),
+    IN p_pnr VARCHAR(24),
     OUT p_old_status VARCHAR(20)
 )
 BEGIN
@@ -123,15 +119,15 @@ BEGIN
 
     -- Step 1: Read lookup fields without mutating
     SELECT booking_id, journey_class_id, status INTO v_booking_id, v_journey_class_id, p_old_status
-    FROM BOOKING 
+    FROM BOOKING
     WHERE pnr = p_pnr;
 
     IF v_booking_id IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Booking not found for PNR';
     END IF;
 
-    SELECT journey_id INTO v_journey_id 
-    FROM JOURNEY_CLASS 
+    SELECT journey_id INTO v_journey_id
+    FROM JOURNEY_CLASS
     WHERE journey_class_id = v_journey_class_id;
 
     -- Step 2: Strict Lock Hierarchy (JOURNEY -> JOURNEY_CLASS -> BOOKING)
@@ -176,7 +172,7 @@ BEGIN
     DECLARE v_reorder_pos INT DEFAULT 1;
 
     -- Cursor iterating waitlist in deterministic FIFO order (FR-R06)
-    DECLARE cur_wl CURSOR FOR 
+    DECLARE cur_wl CURSOR FOR
         SELECT we.waitlist_id, we.booking_id, b.passenger_id
         FROM WAITLIST_ENTRY we
         JOIN BOOKING b ON we.booking_id = b.booking_id
@@ -184,8 +180,8 @@ BEGIN
         ORDER BY we.waitlist_position ASC, b.booked_at ASC, b.booking_id ASC;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
 
-    SELECT journey_id INTO v_journey_id 
-    FROM JOURNEY_CLASS 
+    SELECT journey_id INTO v_journey_id
+    FROM JOURNEY_CLASS
     WHERE journey_class_id = p_journey_class_id;
 
     -- Find 1 available seat
@@ -193,6 +189,7 @@ BEGIN
     FROM JOURNEY_SEAT js
     LEFT JOIN SEAT_ALLOCATION sa ON js.journey_seat_id = sa.journey_seat_id
     WHERE js.journey_class_id = p_journey_class_id AND sa.allocation_id IS NULL
+    ORDER BY js.journey_seat_id ASC
     LIMIT 1;
 
     IF v_free_seat_id IS NOT NULL THEN
@@ -209,9 +206,9 @@ BEGIN
                 -- 1. Transition WAITLISTED -> CONFIRMED
                 UPDATE BOOKING SET status = 'CONFIRMED' WHERE booking_id = v_bkg_id;
 
-                -- 2. Create allocation
-                INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, passenger_id, journey_id)
-                VALUES (v_bkg_id, v_free_seat_id, v_psg_id, v_journey_id);
+                -- 2. Create allocation with composite foreign keys
+                INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, journey_class_id, passenger_id, journey_id)
+                VALUES (v_bkg_id, v_free_seat_id, p_journey_class_id, v_psg_id, v_journey_id);
 
                 -- 3. Delete waitlist entry
                 DELETE FROM WAITLIST_ENTRY WHERE waitlist_id = v_wl_id;
@@ -237,7 +234,7 @@ BEGIN
 
 END$$
 
--- Procedure 4: run_invariants (Comprehensive evaluation of INV-01 through INV-07)
+-- Procedure 4: run_invariants (Comprehensive evaluation of INV-01 through INV-08)
 DROP PROCEDURE IF EXISTS run_invariants$$
 CREATE PROCEDURE run_invariants(OUT p_violations INT)
 BEGIN
@@ -248,6 +245,7 @@ BEGIN
     DECLARE v_inv5_count INT DEFAULT 0;
     DECLARE v_inv6_count INT DEFAULT 0;
     DECLARE v_inv7_count INT DEFAULT 0;
+    DECLARE v_inv8_count INT DEFAULT 0;
 
     -- INV-01: Confirmed bookings <= seats
     SELECT COUNT(*) INTO v_inv1_count
@@ -312,9 +310,26 @@ BEGIN
         JOIN JOURNEY_CLASS jc ON b_wl.journey_class_id = jc.journey_class_id AND jc.journey_id = sa.journey_id
     ) t_inv7;
 
-    SET p_violations = v_inv1_count + v_inv2_count + v_inv3_count + v_inv4_count + v_inv5_count + v_inv6_count + v_inv7_count;
+    -- INV-08: Referential & Topological Consistency Across Allocation Paths (Dual-Path Join)
+    SELECT COUNT(*) INTO v_inv8_count
+    FROM SEAT_ALLOCATION sa
+    LEFT JOIN BOOKING b ON sa.booking_id = b.booking_id
+    LEFT JOIN JOURNEY_CLASS b_jc ON b.journey_class_id = b_jc.journey_class_id
+    LEFT JOIN JOURNEY_SEAT js ON sa.journey_seat_id = js.journey_seat_id
+    LEFT JOIN JOURNEY_CLASS s_jc ON js.journey_class_id = s_jc.journey_class_id
+    WHERE b.booking_id IS NULL
+       OR js.journey_seat_id IS NULL
+       OR b_jc.journey_class_id IS NULL
+       OR s_jc.journey_class_id IS NULL
+       OR sa.passenger_id <> b.passenger_id
+       OR sa.journey_id <> b_jc.journey_id
+       OR sa.journey_id <> s_jc.journey_id
+       OR b.journey_class_id <> js.journey_class_id
+       OR b.status <> 'CONFIRMED';
 
-    SELECT 
+    SET p_violations = v_inv1_count + v_inv2_count + v_inv3_count + v_inv4_count + v_inv5_count + v_inv6_count + v_inv7_count + v_inv8_count;
+
+    SELECT
         v_inv1_count AS inv01_capacity_violations,
         v_inv2_count AS inv02_seat_exclusivity_violations,
         v_inv3_count AS inv03_status_allocation_violations,
@@ -322,9 +337,9 @@ BEGIN
         v_inv5_count AS inv05_passenger_journey_violations,
         v_inv6_count AS inv06_audit_trail_violations,
         v_inv7_count AS inv07_waitlist_ordering_violations,
+        v_inv8_count AS inv08_cross_table_violations,
         p_violations AS total_violations;
 END$$
-
 
 -- Procedure 5: book_group (Atomic Savepoint Rollback per ADR-5, ADR-12, FR-R18, Fixture R-08)
 DROP PROCEDURE IF EXISTS book_group$$
@@ -335,30 +350,40 @@ CREATE PROCEDURE book_group(
     IN p_passenger3_id BIGINT,
     IN p_inject_member2_failure BOOLEAN,
     IN p_group_ref VARCHAR(50),
-    OUT p_pnr1 VARCHAR(20),
-    OUT p_pnr2 VARCHAR(20),
-    OUT p_pnr3 VARCHAR(20),
+    OUT p_pnr1 VARCHAR(24),
+    OUT p_pnr2 VARCHAR(24),
+    OUT p_pnr3 VARCHAR(24),
     OUT p_member2_rolled_back BOOLEAN
 )
 BEGIN
     DECLARE v_journey_id BIGINT;
     DECLARE v_dummy BIGINT;
     DECLARE v_fare DECIMAL(10,2);
-    DECLARE v_seq1 BIGINT;
-    DECLARE v_seq2 BIGINT;
-    DECLARE v_seq3 BIGINT;
     DECLARE v_bkg1 BIGINT;
     DECLARE v_bkg2 BIGINT;
     DECLARE v_bkg3 BIGINT;
     DECLARE v_seat1 BIGINT;
+    DECLARE v_seat2 BIGINT;
     DECLARE v_seat3 BIGINT;
+
+    -- Exit handler for unexpected SQL / infrastructure failures (Phase 4 requirement)
+    -- Outer transaction is rolled back and exception is re-signalled (not swallowed)
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
     -- Lookup journey_id and fare
     SELECT journey_id, base_fare_inr INTO v_journey_id, v_fare
-    FROM JOURNEY_CLASS 
+    FROM JOURNEY_CLASS
     WHERE journey_class_id = p_journey_class_id;
 
-    -- Strict Hierarchical Lock on Parent Journey
+    IF v_journey_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid journey class ID';
+    END IF;
+
+    -- Strict Hierarchical Lock on Parent Journey then Class (ADR-2)
     SELECT journey_id INTO v_dummy FROM JOURNEY WHERE journey_id = v_journey_id FOR UPDATE;
     SELECT journey_class_id INTO v_dummy FROM JOURNEY_CLASS WHERE journey_class_id = p_journey_class_id FOR UPDATE;
 
@@ -367,15 +392,13 @@ BEGIN
     -- -------------------------------------------------------------
     -- MEMBER 1
     -- -------------------------------------------------------------
-    INSERT INTO PNR_SEQUENCE () VALUES ();
-    SET v_seq1 = LAST_INSERT_ID();
-    SET p_pnr1 = CONCAT('PNR-', LPAD(v_seq1, 8, '0'));
-
     SAVEPOINT sp_member_1;
 
     INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-    VALUES (p_pnr1, p_journey_class_id, p_passenger1_id, 'PENDING', v_fare, p_group_ref);
+    VALUES (NULL, p_journey_class_id, p_passenger1_id, 'PENDING', v_fare, p_group_ref);
     SET v_bkg1 = LAST_INSERT_ID();
+    SET p_pnr1 = CONCAT('PNR-', LPAD(v_bkg1, GREATEST(8, LENGTH(v_bkg1)), '0'));
+    UPDATE BOOKING SET pnr = p_pnr1 WHERE booking_id = v_bkg1;
 
     UPDATE BOOKING SET status = 'CONFIRMED' WHERE booking_id = v_bkg1;
 
@@ -383,46 +406,52 @@ BEGIN
     FROM JOURNEY_SEAT js
     LEFT JOIN SEAT_ALLOCATION sa ON js.journey_seat_id = sa.journey_seat_id
     WHERE js.journey_class_id = p_journey_class_id AND sa.allocation_id IS NULL
+    ORDER BY js.journey_seat_id ASC
     LIMIT 1;
 
-    INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, passenger_id, journey_id)
-    VALUES (v_bkg1, v_seat1, p_passenger1_id, v_journey_id);
+    INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, journey_class_id, passenger_id, journey_id)
+    VALUES (v_bkg1, v_seat1, p_journey_class_id, p_passenger1_id, v_journey_id);
 
     -- -------------------------------------------------------------
     -- MEMBER 2
     -- -------------------------------------------------------------
-    INSERT INTO PNR_SEQUENCE () VALUES ();
-    SET v_seq2 = LAST_INSERT_ID();
-    SET p_pnr2 = CONCAT('PNR-', LPAD(v_seq2, 8, '0'));
-
     SAVEPOINT sp_member_2;
 
-    -- Member 2 booking row inserted in state PENDING (PNR consumed)
+    -- Member 2 booking row inserted in state PENDING (PNR derived from auto-increment ID)
     INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-    VALUES (p_pnr2, p_journey_class_id, p_passenger2_id, 'PENDING', v_fare, p_group_ref);
+    VALUES (NULL, p_journey_class_id, p_passenger2_id, 'PENDING', v_fare, p_group_ref);
     SET v_bkg2 = LAST_INSERT_ID();
+    SET p_pnr2 = CONCAT('PNR-', LPAD(v_bkg2, GREATEST(8, LENGTH(v_bkg2)), '0'));
+    UPDATE BOOKING SET pnr = p_pnr2 WHERE booking_id = v_bkg2;
 
     IF p_inject_member2_failure THEN
-        -- Intentional failure triggered after PNR allocation and booking creation (ADR-12)
-        -- Rollback to Member 2 savepoint: unwinds booking and audit rows
+        -- Recoverable business validation failure: unwind only Member 2 work
         ROLLBACK TO SAVEPOINT sp_member_2;
         SET p_member2_rolled_back = TRUE;
     ELSE
         UPDATE BOOKING SET status = 'CONFIRMED' WHERE booking_id = v_bkg2;
+
+        SELECT js.journey_seat_id INTO v_seat2
+        FROM JOURNEY_SEAT js
+        LEFT JOIN SEAT_ALLOCATION sa ON js.journey_seat_id = sa.journey_seat_id
+        WHERE js.journey_class_id = p_journey_class_id AND sa.allocation_id IS NULL
+        ORDER BY js.journey_seat_id ASC
+        LIMIT 1;
+
+        INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, journey_class_id, passenger_id, journey_id)
+        VALUES (v_bkg2, v_seat2, p_journey_class_id, p_passenger2_id, v_journey_id);
     END IF;
 
     -- -------------------------------------------------------------
     -- MEMBER 3
     -- -------------------------------------------------------------
-    INSERT INTO PNR_SEQUENCE () VALUES ();
-    SET v_seq3 = LAST_INSERT_ID();
-    SET p_pnr3 = CONCAT('PNR-', LPAD(v_seq3, 8, '0'));
-
     SAVEPOINT sp_member_3;
 
     INSERT INTO BOOKING (pnr, journey_class_id, passenger_id, status, fare_inr, group_ref)
-    VALUES (p_pnr3, p_journey_class_id, p_passenger3_id, 'PENDING', v_fare, p_group_ref);
+    VALUES (NULL, p_journey_class_id, p_passenger3_id, 'PENDING', v_fare, p_group_ref);
     SET v_bkg3 = LAST_INSERT_ID();
+    SET p_pnr3 = CONCAT('PNR-', LPAD(v_bkg3, GREATEST(8, LENGTH(v_bkg3)), '0'));
+    UPDATE BOOKING SET pnr = p_pnr3 WHERE booking_id = v_bkg3;
 
     UPDATE BOOKING SET status = 'CONFIRMED' WHERE booking_id = v_bkg3;
 
@@ -430,13 +459,13 @@ BEGIN
     FROM JOURNEY_SEAT js
     LEFT JOIN SEAT_ALLOCATION sa ON js.journey_seat_id = sa.journey_seat_id
     WHERE js.journey_class_id = p_journey_class_id AND sa.allocation_id IS NULL
+    ORDER BY js.journey_seat_id ASC
     LIMIT 1;
 
-    INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, passenger_id, journey_id)
-    VALUES (v_bkg3, v_seat3, p_passenger3_id, v_journey_id);
+    INSERT INTO SEAT_ALLOCATION (booking_id, journey_seat_id, journey_class_id, passenger_id, journey_id)
+    VALUES (v_bkg3, v_seat3, p_journey_class_id, p_passenger3_id, v_journey_id);
 
 END$$
-
 
 -- Procedure 6: evaluate_case (Disruption Refund Advisor Canonical Engine)
 DROP PROCEDURE IF EXISTS evaluate_case$$
@@ -454,7 +483,6 @@ CREATE PROCEDURE evaluate_case(
     OUT p_evaluation_id BIGINT
 )
 proc_label: BEGIN
-    DECLARE v_rv_id BIGINT DEFAULT NULL;
     DECLARE v_rule_id BIGINT DEFAULT NULL;
     DECLARE v_rule_code VARCHAR(50) DEFAULT NULL;
     DECLARE v_rule_family VARCHAR(50) DEFAULT NULL;
@@ -494,7 +522,7 @@ proc_label: BEGIN
     IF p_ticket_scope IS NULL OR p_ticket_scope <> 'SIMULATED_E_TICKET_CONFIRMED' THEN
         SET p_outcome = 'UNRESOLVED';
         SET p_action_code = 'NO_ACTION_UNRESOLVED';
-        INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+        INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
         VALUES (p_case_id, NULL, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
         SET p_evaluation_id = LAST_INSERT_ID();
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'UNSUPPORTED_TICKET_SCOPE', 1);
@@ -507,43 +535,48 @@ proc_label: BEGIN
     IF v_travelled_cnt > 0 AND v_not_travelled_cnt > 0 THEN
         SET p_outcome = 'UNRESOLVED';
         SET p_action_code = 'NO_ACTION_UNRESOLVED';
-        INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+        INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
         VALUES (p_case_id, NULL, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
         SET p_evaluation_id = LAST_INSERT_ID();
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'EVENT_CONFLICT', 1);
         LEAVE proc_label;
     END IF;
 
-    -- 3. Match Rule Version by policyApplicabilityTime
-    SELECT rv.rule_version_id, rr.rule_id, rr.rule_code, rr.rule_family, rv.version_number, rv.verified, rv.threshold_minutes, rv.refund_basis_pct
-    INTO v_rv_id, v_rule_id, v_rule_code, v_rule_family, v_version_num, v_verified, v_threshold, v_refund_basis
-    FROM RULE_VERSION rv
-    JOIN REFUND_RULE rr ON rv.rule_id = rr.rule_id
-    WHERE rv.is_active = TRUE
-      AND (rv.effective_from <= p_policy_applicability_time AND (rv.effective_to IS NULL OR p_policy_applicability_time < rv.effective_to))
-      AND (rr.rule_family = p_rule_family OR (p_rule_family = 'LATE_OVER_3_HOURS' AND rr.rule_family = 'LATE_OVER_3_HOURS_E_TICKET') OR (p_rule_family = 'TRAIN_CANCELLED' AND rr.rule_family = 'TRAIN_CANCELLED_E_TICKET'))
-    ORDER BY rv.version_number DESC
+    -- 3. Match Rule by policyApplicabilityTime in consolidated REFUND_RULE
+    SELECT rr.rule_id, rr.family_code, rr.version, rr.verified, rr.threshold_minutes, rr.refund_basis_pct
+    INTO v_rule_id, v_rule_family, v_version_num, v_verified, v_threshold, v_refund_basis
+    FROM REFUND_RULE rr
+    WHERE rr.is_active = TRUE
+      AND (rr.effective_from <= p_policy_applicability_time AND (rr.effective_to IS NULL OR p_policy_applicability_time < rr.effective_to))
+      AND (rr.family_code = p_rule_family OR (p_rule_family = 'LATE_OVER_3_HOURS' AND rr.family_code = 'LATE_OVER_3_HOURS_E_TICKET') OR (p_rule_family = 'TRAIN_CANCELLED' AND rr.family_code = 'TRAIN_CANCELLED_E_TICKET'))
+    ORDER BY rr.version DESC
     LIMIT 1;
 
-    IF v_rv_id IS NULL THEN
+    IF v_rule_id IS NULL THEN
         SET p_outcome = 'UNRESOLVED';
         SET p_action_code = 'NO_ACTION_UNRESOLVED';
-        INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+        INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
         VALUES (p_case_id, NULL, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
         SET p_evaluation_id = LAST_INSERT_ID();
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'RULE_NOT_FOUND', 1);
         LEAVE proc_label;
     END IF;
 
-    SET p_rule_id = v_rule_code;
+    IF v_rule_family = 'LATE_OVER_3_HOURS_E_TICKET' THEN
+        SET p_rule_id = 'RULE-LATE-3HR-V1';
+    ELSEIF v_rule_family = 'TRAIN_CANCELLED_E_TICKET' THEN
+        SET p_rule_id = 'RULE-CANCEL-V1';
+    ELSE
+        SET p_rule_id = CONCAT('RULE-', v_rule_family, '-V', v_version_num);
+    END IF;
     SET p_rule_version = v_version_num;
 
     -- 4. Check Rule Verification
     IF NOT v_verified THEN
         SET p_outcome = 'UNRESOLVED';
         SET p_action_code = 'NO_ACTION_UNRESOLVED';
-        INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-        VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+        INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+        VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
         SET p_evaluation_id = LAST_INSERT_ID();
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'RULE_SOURCE_UNVERIFIED', 1);
         LEAVE proc_label;
@@ -558,8 +591,8 @@ proc_label: BEGIN
         IF v_delay_val IS NULL THEN
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'DELAY_UNKNOWN', 1);
             LEAVE proc_label;
@@ -568,8 +601,8 @@ proc_label: BEGIN
         IF v_delay_src <> 'SIMULATED_OFFICIAL' THEN
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'DELAY_UNVERIFIED', 1);
             LEAVE proc_label;
@@ -578,8 +611,8 @@ proc_label: BEGIN
         IF v_delay_val <= v_threshold THEN
             SET p_outcome = 'NOT_ELIGIBLE';
             SET p_action_code = 'NO_ACTION_INELIGIBLE';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'DELAY_NOT_OVER_THRESHOLD', 1);
             LEAVE proc_label;
@@ -589,8 +622,8 @@ proc_label: BEGIN
         IF v_travelled_cnt > 0 THEN
             SET p_outcome = 'NOT_ELIGIBLE';
             SET p_action_code = 'NO_ACTION_INELIGIBLE';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'PASSENGER_TRAVELLED', 1);
             LEAVE proc_label;
@@ -599,8 +632,8 @@ proc_label: BEGIN
         IF v_not_travelled_cnt = 0 THEN
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'TRAVEL_STATUS_UNKNOWN', 1);
             LEAVE proc_label;
@@ -611,8 +644,8 @@ proc_label: BEGIN
         IF v_actual_dept_time IS NULL THEN
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'ACTUAL_DEPARTURE_UNKNOWN', 1);
             LEAVE proc_label;
@@ -622,8 +655,8 @@ proc_label: BEGIN
         IF v_filing_time IS NULL THEN
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'FILING_ATTEMPT_UNKNOWN', 1);
             LEAVE proc_label;
@@ -632,8 +665,8 @@ proc_label: BEGIN
         IF v_filing_time >= v_actual_dept_time THEN
             SET p_outcome = 'DEADLINE_EXPIRED';
             SET p_action_code = 'NO_ACTION_DEADLINE_EXPIRED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'FILED_AFTER_DEPARTURE', 1);
             LEAVE proc_label;
@@ -643,8 +676,8 @@ proc_label: BEGIN
         SET p_outcome = 'ELIGIBLE';
         SET p_action_code = 'MODELLED_TDR_FILED_BEFORE_DEPARTURE';
         SET p_refund_amount = v_fare;
-        INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-        VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, p_refund_amount, v_disclaimer);
+        INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+        VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, p_refund_amount, v_disclaimer);
         SET p_evaluation_id = LAST_INSERT_ID();
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'DELAY_OVER_THRESHOLD', 1);
         INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'FILED_BEFORE_DEPARTURE', 2);
@@ -656,16 +689,16 @@ proc_label: BEGIN
             SET p_outcome = 'ELIGIBLE';
             SET p_action_code = 'NO_TDR_REQUIRED';
             SET p_refund_amount = v_fare;
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, p_refund_amount, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, p_refund_amount, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'TRAIN_CANCELLED_AUTO_REFUND', 1);
             LEAVE proc_label;
         ELSE
             SET p_outcome = 'UNRESOLVED';
             SET p_action_code = 'NO_ACTION_UNRESOLVED';
-            INSERT INTO CASE_EVALUATION (case_id, rule_version_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
-            VALUES (p_case_id, v_rv_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
+            INSERT INTO CASE_EVALUATION (case_id, rule_id, evaluation_time, outcome, deadline_action, refund_amount_inr, disclaimer)
+            VALUES (p_case_id, v_rule_id, p_evaluation_time, p_outcome, p_action_code, 0.00, v_disclaimer);
             SET p_evaluation_id = LAST_INSERT_ID();
             INSERT INTO CASE_EVALUATION_CODE (evaluation_id, reason_code, code_order) VALUES (p_evaluation_id, 'TRAIN_CANCELLATION_UNKNOWN', 1);
             LEAVE proc_label;
@@ -675,4 +708,3 @@ proc_label: BEGIN
 END$$
 
 DELIMITER ;
-

@@ -53,16 +53,9 @@ INSERT INTO PASSENGER (passenger_id, full_name, email, phone) VALUES
 (4, 'Priya Singh', 'priya@example.com', '9876543213'),
 (5, 'Vikram Malhotra', 'vikram@example.com', '9876543214');
 
--- Refund Rules
-INSERT INTO REFUND_RULE (rule_id, rule_code, rule_family, description) VALUES
-(1, 'IRCTC_RULE_6_LATE_3H', 'LATE_OVER_3_HOURS_E_TICKET', 'Refund on train late over 3 hours at boarding station'),
-(2, 'IRCTC_RULE_5A_CANCEL', 'TRAIN_CANCELLED_E_TICKET', 'Automatic refund on train officially cancelled'),
-(3, 'UNVERIFIED_TEST_RULE', 'UNVERIFIED_FAMILY', 'Synthetic rule lacking official verification');
-
--- Rule Versions
-INSERT INTO RULE_VERSION (rule_version_id, rule_id, version_number, effective_from, effective_to, source_url, source_section, source_checked_on, verified, threshold_minutes, refund_basis_pct, is_active) VALUES
-(1, 1, 1, '2026-01-01 00:00:00', '2026-06-30 23:59:59', 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'Clause 6', '2026-10-24', TRUE, 180, 100.00, TRUE),
-(2, 1, 2, '2026-07-01 00:00:00', NULL, 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'Clause 6 (v2)', '2026-10-24', TRUE, 180, 100.00, TRUE),
-(3, 2, 1, '2026-01-01 00:00:00', NULL, 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'Clause 5(a)', '2026-10-24', TRUE, 0, 100.00, TRUE),
-(4, 3, 1, '2026-01-01 00:00:00', NULL, 'https://example.com/unverified', 'Section 9', '2026-10-24', FALSE, 180, 100.00, TRUE);
-
+-- Refund Rules (Consolidated Versioning & Sourced Effective Intervals)
+INSERT INTO REFUND_RULE (rule_id, family_code, version, effective_from, effective_to, threshold_minutes, deadline_basis, refund_basis_pct, ticket_scope, source_url, source_title, source_clause, source_checked_on, reviewer, verified, is_active) VALUES
+(1, 'LATE_OVER_3_HOURS_E_TICKET', 1, '2026-01-01 00:00:00', '2026-06-30 23:59:59', 180, 'ACTUAL_DEPARTURE', 100.00, 'SIMULATED_E_TICKET', 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'IRCTC Refund Rules', 'Clause 6', '2026-10-24', 'Soham More', TRUE, TRUE),
+(2, 'LATE_OVER_3_HOURS_E_TICKET', 2, '2026-07-01 00:00:00', NULL, 180, 'ACTUAL_DEPARTURE', 100.00, 'SIMULATED_E_TICKET', 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'IRCTC Refund Rules', 'Clause 6 (v2)', '2026-10-24', 'Soham More', TRUE, TRUE),
+(3, 'TRAIN_CANCELLED_E_TICKET', 1, '2026-01-01 00:00:00', NULL, 0, 'AUTOMATIC', 100.00, 'SIMULATED_E_TICKET', 'https://www.irctc.co.in/eticketing/refundrules.jsf', 'IRCTC Refund Rules', 'Clause 5(a)', '2026-10-24', 'Soham More', TRUE, TRUE),
+(4, 'UNVERIFIED_FAMILY', 1, '2026-01-01 00:00:00', NULL, 180, 'ACTUAL_DEPARTURE', 100.00, 'SIMULATED_E_TICKET', 'https://example.com/unverified', 'Synthetic Rule', 'Section 9', '2026-10-24', 'Reviewer', FALSE, TRUE);
