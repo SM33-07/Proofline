@@ -73,7 +73,7 @@ export function LandingNavbar() {
               <a
                 key={link.name}
                 href={link.href}
-                className="relative py-1 hover:text-[#E9663B] dark:hover:text-[#F0784D] transition-colors group"
+                className="relative py-1 hover:text-[#E9663B] dark:hover:text-[#F0784D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] rounded transition-colors group"
               >
                 <span>{link.name}</span>
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#E9663B] dark:bg-[#F0784D] transition-all duration-200 group-hover:w-full" />
@@ -86,7 +86,7 @@ export function LandingNavbar() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="rounded-full border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-2 text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:border-[#E9663B]/50 dark:hover:border-[#F0784D]/50 transition-all shadow-xs cursor-pointer"
+              className="rounded-full border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-2 text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:border-[#E9663B]/50 dark:hover:border-[#F0784D]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-all shadow-xs cursor-pointer"
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -100,7 +100,7 @@ export function LandingNavbar() {
             {/* Secondary Action: Demo Access / Role Perspective */}
             <Link
               href="/demo"
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:border-[#E9663B]/40 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:border-[#E9663B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-colors cursor-pointer"
             >
               <span>Demo Access</span>
             </Link>
@@ -108,7 +108,7 @@ export function LandingNavbar() {
             {/* Primary Action CTA: Launch Simulator */}
             <Link
               href="/demo"
-              className="inline-flex items-center gap-2 rounded-full bg-[#E9663B] hover:bg-[#D5542A] dark:bg-[#F0784D] dark:hover:bg-[#F78D65] px-4.5 py-1.5 text-xs font-display font-extrabold uppercase tracking-wider text-white dark:text-[#171815] shadow-xs hover:shadow-[0_4px_16px_rgba(233,102,59,0.3)] transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-full bg-[#E9663B] hover:bg-[#D5542A] dark:bg-[#F0784D] dark:hover:bg-[#F78D65] px-4.5 py-1.5 text-xs font-display font-extrabold uppercase tracking-wider text-white dark:text-[#171815] shadow-xs hover:shadow-[0_4px_16px_rgba(233,102,59,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] active:scale-[0.98] transition-all cursor-pointer"
             >
               <span>Launch Simulator</span>
               <ArrowRight className="h-3.5 w-3.5" />
