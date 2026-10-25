@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Signal & Graphite Light Theme */
+  --background: #f4f0e7;        /* Warm Paper */
+  --surface: #faf8f4;           /* Raised Card / Subsurface */
+  --surface-elevated: #ffffff;  /* Elevated Modal / Popover */
+  --foreground: #242521;        /* Graphite Ink */
+  --foreground-muted: #5e6059;  /* Secondary Graphite */
+  --foreground-subtle: #8c887d; /* Tertiary Stone */
+  --border: #d9d0c1;            /* Stone Border */
+  --border-subtle: #e6dfd3;     /* Fine Divider */
+  --signal-orange: #e9663b;     /* Signal Orange */
+  --signal-orange-hover: #d5542a;
+  --signal-orange-tint: rgba(233, 102, 59, 0.10);
+  --signal-orange-border: rgba(233, 102, 59, 0.30);
+  --rail-green: #4a685f;        /* Muted Rail Green (AA contrast on paper) */
+  --rail-green-tint: rgba(74, 104, 95, 0.12);
+  --rail-green-border: rgba(74, 104, 95, 0.30);
+  --status-critical: #c83c2a;   /* Incident Crimson */
+  --status-critical-tint: rgba(200, 60, 42, 0.10);
+  --status-amber: #c57613;      /* Caution Amber */
+  --status-amber-tint: rgba(197, 118, 19, 0.10);
+  --status-slate: #546670;      /* Corridor Slate */
+}
+
+.dark {
+  /* Signal & Graphite Dark Theme */
+  --background: #171815;        /* Graphite Night */
+  --surface: #242521;           /* Raised Surface */
+  --surface-elevated: #2d2e29;  /* Elevated Card */
+  --foreground: #f0e9dc;        /* Warm Off-White */
+  --foreground-muted: #a39f93;  /* Secondary Muted Off-White */
+  --foreground-subtle: #726f65; /* Tertiary Muted */
+  --border: #353731;            /* Dark Stone Border */
+  --border-subtle: #272823;     /* Fine Dark Divider */
+  --signal-orange: #f0784d;     /* Vibrant Signal Orange */
+  --signal-orange-hover: #f78d65;
+  --signal-orange-tint: rgba(240, 120, 77, 0.15);
+  --signal-orange-border: rgba(240, 120, 77, 0.35);
+  --rail-green: #88a69a;        /* Muted Rail Green */
+  --rail-green-tint: rgba(136, 166, 154, 0.15);
+  --rail-green-border: rgba(136, 166, 154, 0.35);
+  --status-critical: #f45846;   /* Critical Red */
+  --status-critical-tint: rgba(244, 88, 70, 0.15);
+  --status-amber: #e6962c;      /* Caution Amber */
+  --status-amber-tint: rgba(230, 150, 44, 0.15);
+  --status-slate: #8ca3ae;      /* Corridor Slate */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+  --color-signal-orange: var(--signal-orange);
+  --color-rail-green: var(--rail-green);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-barlow-condensed);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+html {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom scrollbars matching Signal & Graphite stone tones */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: #d0c7b7;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #2e302a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b5ac9b;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #41433b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
