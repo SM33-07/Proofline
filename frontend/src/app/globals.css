@@ -9,7 +9,7 @@
   --surface-elevated: #ffffff;  /* Elevated Modal / Popover */
   --foreground: #242521;        /* Graphite Ink */
   --foreground-muted: #5e6059;  /* Secondary Graphite */
-  --foreground-subtle: #8c887d; /* Tertiary Stone */
+  --foreground-subtle: #6e6a60; /* Tertiary Stone (enhanced contrast) */
   --border: #d9d0c1;            /* Stone Border */
   --border-subtle: #e6dfd3;     /* Fine Divider */
   --signal-orange: #e9663b;     /* Signal Orange */
@@ -33,7 +33,7 @@
   --surface-elevated: #2d2e29;  /* Elevated Card */
   --foreground: #f0e9dc;        /* Warm Off-White */
   --foreground-muted: #a39f93;  /* Secondary Muted Off-White */
-  --foreground-subtle: #726f65; /* Tertiary Muted */
+  --foreground-subtle: #8c887d; /* Tertiary Muted (enhanced contrast) */
   --border: #353731;            /* Dark Stone Border */
   --border-subtle: #272823;     /* Fine Dark Divider */
   --signal-orange: #f0784d;     /* Vibrant Signal Orange */
@@ -56,7 +56,9 @@
   --color-surface-elevated: var(--surface-elevated);
   --color-foreground: var(--foreground);
   --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
   --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
   --color-signal-orange: var(--signal-orange);
   --color-rail-green: var(--rail-green);
   --font-sans: var(--font-inter);

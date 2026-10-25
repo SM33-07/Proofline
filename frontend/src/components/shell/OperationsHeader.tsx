@@ -64,7 +64,7 @@ export function OperationsHeader({ onMenuToggle }: HeaderProps) {
         {/* Real-time Clock */}
         <div className="hidden md:flex items-center gap-1.5 rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-2.5 py-1 text-xs font-mono text-[#242521] dark:text-[#F0E9DC]">
           <Clock className="h-3.5 w-3.5 text-[#E9663B] dark:text-[#F0784D]" />
-          <span>{timeStr || '--:--:--'} IST</span>
+          <span suppressHydrationWarning>{timeStr || '--:--:--'} IST</span>
         </div>
 
         {/* Invariant Health Status Target */}

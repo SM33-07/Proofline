@@ -201,8 +201,8 @@ export default function BookingsPage() {
 
       {/* Copy Feedback Toast */}
       {copyFeedbackText && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-slate-900 px-4 py-2 text-xs font-mono text-emerald-300 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <Check className="h-4 w-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[#4A685F]/40 bg-[#FAF8F4] dark:bg-[#242521] px-4 py-2 text-xs font-mono text-[#3D564F] dark:text-[#88A69A] shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
+          <Check className="h-4 w-4 text-[#4A685F] dark:text-[#88A69A]" />
           <span>{copyFeedbackText}</span>
         </div>
       )}
@@ -315,7 +315,7 @@ export default function BookingsPage() {
 
             <button
               onClick={clearAllFilters}
-              className="text-xs text-cyan-600 dark:text-[#E9663B] dark:text-[#F0784D] hover:text-cyan-700 dark:hover:text-[#E9663B] dark:text-[#F0784D] underline underline-offset-2"
+              className="text-xs text-[#E9663B] dark:text-[#F0784D] hover:underline underline-offset-2"
             >
               Clear all filters ({filteredBookings.length} matching)
             </button>
@@ -372,14 +372,14 @@ export default function BookingsPage() {
                         setShowCancelConfirm(false);
                       }}
                       className={`cursor-pointer transition-colors group ${
-                        isSelected ? 'bg-cyan-950/20' : 'hover:bg-slate-800/40'
+                        isSelected ? 'bg-[#E9663B]/10 dark:bg-[#F0784D]/15' : 'hover:bg-[#F4F0E7] dark:hover:bg-[#171815]'
                       }`}
                     >
                       <td className="py-3.5 px-3 sm:px-4 text-center" onClick={(e) => toggleSelectRow(b.pnr, e)}>
                         {isSelected ? (
                           <CheckSquare className="h-4 w-4 text-[#E9663B] dark:text-[#F0784D] mx-auto" />
                         ) : (
-                          <Square className="h-4 w-4 text-slate-600 group-hover:text-[#8C887D] dark:text-[#726F65] mx-auto" />
+                          <Square className="h-4 w-4 text-[#8C887D] dark:text-[#726F65] group-hover:text-[#242521] dark:group-hover:text-[#F0E9DC] mx-auto" />
                         )}
                       </td>
                       <td className="py-3.5 px-4 sm:px-6">
@@ -387,12 +387,12 @@ export default function BookingsPage() {
                           <span className="font-bold text-[#E9663B] dark:text-[#F0784D]">{b.pnr}</span>
                           <button
                             onClick={(e) => handleCopyPnr(b.pnr, e)}
-                            className="rounded p-1 text-[#8C887D] dark:text-[#726F65] hover:bg-slate-800 hover:text-[#5E6059] dark:text-[#A39F93] transition-colors"
+                            className="rounded p-1 text-[#8C887D] dark:text-[#726F65] hover:bg-[#F4F0E7] dark:hover:bg-[#171815] hover:text-[#242521] dark:hover:text-[#F0E9DC] transition-colors"
                             title="Copy PNR to clipboard"
                             aria-label={`Copy PNR ${b.pnr}`}
                           >
                             {copiedPnr === b.pnr ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
+                              <Check className="h-3.5 w-3.5 text-[#4A685F] dark:text-[#88A69A]" />
                             ) : (
                               <Copy className="h-3.5 w-3.5" />
                             )}
@@ -412,14 +412,14 @@ export default function BookingsPage() {
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="rounded bg-slate-800 px-2 py-0.5 text-[#5E6059] dark:text-[#A39F93] font-bold border border-slate-700">
+                        <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2 py-0.5 text-[#242521] dark:text-[#F0E9DC] font-bold border border-[#D9D0C1] dark:border-[#353731]">
                           {b.travelClass}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
                         {b.status === 'CONFIRMED' && (
                           <div className="text-[#242521] dark:text-[#F0E9DC]">
-                            <span className="font-bold text-emerald-400">{b.coach}</span>
+                            <span className="font-bold text-[#4A685F] dark:text-[#88A69A]">{b.coach}</span>
                             <span className="text-[#8C887D] dark:text-[#726F65]"> - Seat {b.berthNumber}</span>
                             <span className="text-[10px] text-[#8C887D] dark:text-[#726F65] block font-sans">
                               {b.berthType}
@@ -427,17 +427,17 @@ export default function BookingsPage() {
                           </div>
                         )}
                         {b.status === 'WAITLIST' && (
-                          <div className="font-bold text-amber-400">
+                          <div className="font-bold text-[#C57613] dark:text-[#E6962C]">
                             WL-{b.waitlistNumber?.toString().padStart(2, '0')}
                           </div>
                         )}
                         {b.status === 'RAC' && (
-                          <div className="font-bold text-sky-400">
+                          <div className="font-bold text-[#3D6875] dark:text-[#78A3AF]">
                             RAC-{b.racNumber?.toString().padStart(2, '0')} ({b.coach})
                           </div>
                         )}
                         {b.status === 'CANCELLED' && (
-                          <div className="text-zinc-500 italic">Seat Released (Demo)</div>
+                          <div className="text-[#8C887D] dark:text-[#726F65] italic">Seat Released (Demo)</div>
                         )}
                       </td>
                       <td className="py-3.5 px-4">
@@ -498,12 +498,12 @@ export default function BookingsPage() {
                   </h3>
                   <button
                     onClick={(e) => handleCopyPnr(selectedBooking.pnr, e)}
-                    className="inline-flex items-center gap-1 rounded bg-slate-800 px-2 py-0.5 text-[11px] font-mono text-[#5E6059] dark:text-[#A39F93] border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1 rounded bg-[#F4F0E7] dark:bg-[#171815] px-2 py-0.5 text-[11px] font-mono text-[#242521] dark:text-[#F0E9DC] border border-[#D9D0C1] dark:border-[#353731] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors"
                   >
                     {copiedPnr === selectedBooking.pnr ? (
                       <>
-                        <Check className="h-3 w-3 text-emerald-400" />
-                        <span className="text-emerald-400 font-bold">Copied</span>
+                        <Check className="h-3 w-3 text-[#4A685F] dark:text-[#88A69A]" />
+                        <span className="text-[#4A685F] dark:text-[#88A69A] font-bold">Copied</span>
                       </>
                     ) : (
                       <>
@@ -520,7 +520,7 @@ export default function BookingsPage() {
                   setSelectedBooking(null);
                   setShowCancelConfirm(false);
                 }}
-                className="rounded-lg p-1.5 text-[#8C887D] dark:text-[#726F65] hover:bg-slate-100 dark:text-[#8C887D] dark:text-[#726F65] dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                className="rounded-lg p-1.5 text-[#8C887D] dark:text-[#726F65] hover:bg-[#F4F0E7] dark:hover:bg-[#171815] hover:text-[#242521] dark:hover:text-[#F0E9DC] transition-colors"
                 aria-label="Close dossier modal"
               >
                 <X className="h-5 w-5" />
@@ -562,7 +562,7 @@ export default function BookingsPage() {
                 <div className="grid grid-cols-3 gap-2 text-[#8C887D] dark:text-[#726F65] pt-1 text-[11px]">
                   <div>Date: <span className="text-[#242521] dark:text-[#F0E9DC] font-bold">{selectedBooking.travelDate}</span></div>
                   <div>Class: <span className="text-[#E9663B] dark:text-[#F0784D] font-bold">{selectedBooking.travelClass}</span></div>
-                  <div>Fare: <span className="text-emerald-400 font-bold">₹{selectedBooking.fareAmount}</span></div>
+                  <div>Fare: <span className="text-[#4A685F] dark:text-[#88A69A] font-bold">₹{selectedBooking.fareAmount}</span></div>
                 </div>
               </div>
 
@@ -582,8 +582,8 @@ export default function BookingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[#8C887D] dark:text-[#726F65]">Booking Timestamp:</span>
-                  <span className="text-[#5E6059] dark:text-[#A39F93]">
-                    {new Date(selectedBooking.bookingTimestamp).toLocaleString()}
+                  <span suppressHydrationWarning className="text-[#5E6059] dark:text-[#A39F93]">
+                    {new Date(selectedBooking.bookingTimestamp).toLocaleString('en-US')}
                   </span>
                 </div>
                 <div className="border-t border-[#D9D0C1] dark:border-[#353731] pt-2 flex items-center justify-between text-[11px]">
@@ -592,8 +592,8 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-300 flex items-start gap-2.5">
-                <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="rounded-lg border border-[#C57613]/30 bg-[#C57613]/10 p-3 text-[11px] text-[#A25F0B] dark:text-[#E6962C] flex items-start gap-2.5">
+                <Sparkles className="h-4 w-4 text-[#C57613] dark:text-[#E6962C] shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold uppercase tracking-wider block font-mono">
                     DEMO-ONLY INTERACTION NOTICE
@@ -606,13 +606,13 @@ export default function BookingsPage() {
             </div>
 
             {/* Modal Actions */}
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-800 pt-4">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-[#D9D0C1] dark:border-[#353731] pt-4">
               <div>
                 {selectedBooking.status !== 'CANCELLED' ? (
                   !showCancelConfirm ? (
                     <button
                       onClick={() => setShowCancelConfirm(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3.5 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#C83C2A]/30 bg-[#C83C2A]/10 px-3.5 py-2 text-xs font-semibold text-[#A82B1B] dark:text-[#F45846] hover:bg-[#C83C2A]/20 transition-colors"
                     >
                       <Ban className="h-3.5 w-3.5" />
                       <span>Cancel Booking (Demo Only)</span>
@@ -621,13 +621,13 @@ export default function BookingsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDemoCancel(selectedBooking.pnr)}
-                        className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 transition-colors"
+                        className="rounded-lg bg-[#C83C2A] dark:bg-[#F45846] px-3 py-1.5 text-xs font-semibold text-white dark:text-[#171815] hover:bg-[#B33525] dark:hover:bg-[#E04B3A] transition-colors"
                       >
                         Confirm Demo Cancellation
                       </button>
                       <button
                         onClick={() => setShowCancelConfirm(false)}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-[#5E6059] dark:text-[#A39F93] hover:bg-slate-700"
+                        className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-3 py-1.5 text-xs text-[#5E6059] dark:text-[#A39F93] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors"
                       >
                         Abort
                       </button>
@@ -635,7 +635,7 @@ export default function BookingsPage() {
                   )
                 ) : (
                   <span className="text-xs text-[#8C887D] dark:text-[#726F65] italic flex items-center gap-1.5">
-                    <Check className="h-3.5 w-3.5 text-zinc-400" />
+                    <Check className="h-3.5 w-3.5 text-[#4A685F] dark:text-[#88A69A]" />
                     Seat Released (Cancelled in Demo State)
                   </span>
                 )}
@@ -646,7 +646,7 @@ export default function BookingsPage() {
                   setSelectedBooking(null);
                   setShowCancelConfirm(false);
                 }}
-                className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-[#5E6059] dark:text-[#A39F93] hover:bg-slate-700 transition-colors"
+                className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-4 py-2 text-xs font-semibold text-[#242521] dark:text-[#F0E9DC] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors"
               >
                 Close Dossier
               </button>

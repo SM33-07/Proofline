@@ -83,8 +83,8 @@ export default function InventoryPage() {
                 onClick={() => setSelectedJourneyId(j.journeyId)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-mono transition-all flex items-center gap-2 ${
                   isSelected
-                    ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-bold border border-[#E9663B]/40 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                    : 'text-[#5E6059] dark:text-[#A39F93] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] hover:text-slate-900 dark:hover:text-slate-200 border border-transparent'
+                    ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-bold border border-[#E9663B]/40 shadow-xs'
+                    : 'text-[#5E6059] dark:text-[#A39F93] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] hover:text-[#242521] dark:hover:text-[#F0E9DC] border border-transparent'
                 }`}
                 aria-pressed={isSelected}
               >
@@ -207,27 +207,27 @@ export default function InventoryPage() {
                   key={cls.travelClass}
                   className={`rounded-xl border p-4.5 space-y-3 transition-all ${
                     isZeroSeat
-                      ? 'border-dashed border-slate-300 dark:border-slate-800 bg-[#F4F0E7] dark:bg-[#171815] opacity-75'
+                      ? 'border-dashed border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] opacity-75'
                       : isFull
-                      ? 'border-rose-500/30 bg-rose-950/10'
+                      ? 'border-[#C83C2A]/30 bg-[#C83C2A]/10'
                       : 'border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815]'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-xs font-mono font-bold text-[#E9663B] dark:text-[#F0784D] border border-slate-200 dark:border-slate-700">
+                    <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-xs font-mono font-bold text-[#E9663B] dark:text-[#F0784D] border border-[#D9D0C1] dark:border-[#353731]">
                       Class {cls.travelClass}
                     </span>
 
                     {isZeroSeat ? (
-                      <span className="rounded bg-slate-800/80 px-2 py-0.5 text-[10px] font-mono font-medium text-[#8C887D] dark:text-[#726F65] border border-slate-700">
+                      <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2 py-0.5 text-[10px] font-mono font-medium text-[#8C887D] dark:text-[#726F65] border border-[#D9D0C1] dark:border-[#353731]">
                         ZERO-SEAT (0 SEATS)
                       </span>
                     ) : isFull ? (
-                      <span className="rounded bg-[#C83C2A] dark:bg-[#F45846]/15 px-2 py-0.5 text-[10px] font-mono font-bold text-rose-400 border border-rose-500/30">
+                      <span className="rounded bg-[#C83C2A]/15 px-2 py-0.5 text-[10px] font-mono font-bold text-[#A82B1B] dark:text-[#F45846] border border-[#C83C2A]/30">
                         FULL (WL ONLY)
                       </span>
                     ) : (
-                      <span className="rounded bg-[#4A685F] dark:bg-[#88A69A]/15 px-2 py-0.5 text-[10px] font-mono font-bold text-[#4A685F] dark:text-[#88A69A] border border-emerald-500/30">
+                      <span className="rounded bg-[#4A685F]/15 px-2 py-0.5 text-[10px] font-mono font-bold text-[#3D564F] dark:text-[#88A69A] border border-[#4A685F]/30">
                         {available} SEATS FREE
                       </span>
                     )}
@@ -236,7 +236,7 @@ export default function InventoryPage() {
                   <div className="space-y-1 font-mono text-xs">
                     <div className="flex justify-between text-[#8C887D] dark:text-[#726F65]">
                       <span>Occupancy:</span>
-                      <span className={`font-bold ${isZeroSeat ? 'text-[#8C887D] dark:text-[#726F65]' : isFull ? 'text-rose-400' : 'text-slate-200'}`}>
+                      <span className={`font-bold ${isZeroSeat ? 'text-[#8C887D] dark:text-[#726F65]' : isFull ? 'text-[#C83C2A] dark:text-[#F45846]' : 'text-[#242521] dark:text-[#F0E9DC]'}`}>
                         {classOccupancyPct}
                       </span>
                     </div>
@@ -248,7 +248,7 @@ export default function InventoryPage() {
                       </span>
                     </div>
 
-                    <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-2 w-full rounded-full bg-[#E6DFD3] dark:bg-[#272823] overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           isZeroSeat
@@ -264,7 +264,7 @@ export default function InventoryPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-800/80 pt-2.5 text-[11px] font-mono">
+                  <div className="border-t border-[#D9D0C1] dark:border-[#353731] pt-2.5 text-[11px] font-mono">
                     {isZeroSeat ? (
                       <div className="text-[#8C887D] dark:text-[#726F65] italic flex items-center gap-1.5">
                         <Info className="h-3 w-3" />
@@ -273,17 +273,17 @@ export default function InventoryPage() {
                     ) : (
                       <div className="flex items-center justify-between">
                         <span className="text-[#8C887D] dark:text-[#726F65]">
-                          Waitlist: <span className="font-bold text-amber-400">{cls.waitlistCount}</span>
+                          Waitlist: <span className="font-bold text-[#C57613] dark:text-[#E6962C]">{cls.waitlistCount}</span>
                         </span>
                         <span className="text-[#8C887D] dark:text-[#726F65]">
-                          RAC: <span className="font-bold text-sky-400">{cls.racCount}</span>
+                          RAC: <span className="font-bold text-[#3D6875] dark:text-[#78A3AF]">{cls.racCount}</span>
                         </span>
                       </div>
                     )}
                   </div>
 
                   {!isZeroSeat && coachComposition[cls.travelClass] && (
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-[#8C887D] dark:text-[#726F65] pt-1 border-t border-slate-900">
+                    <div className="flex items-center gap-1 text-[10px] font-mono text-[#8C887D] dark:text-[#726F65] pt-1 border-t border-[#E6DFD3] dark:border-[#272823]">
                       <span>Rake Coaches:</span>
                       <span className="text-[#8C887D] dark:text-[#726F65]">
                         {coachComposition[cls.travelClass].join(', ')}
@@ -296,16 +296,16 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs font-mono text-[#5E6059] dark:text-[#A39F93] space-y-2">
+        <div className="rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-4 text-xs font-mono text-[#5E6059] dark:text-[#A39F93] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 font-bold text-slate-100">
+            <span className="flex items-center gap-2 font-bold text-[#242521] dark:text-[#F0E9DC]">
               <CheckCircle className="h-4 w-4 text-[#4A685F] dark:text-[#88A69A]" />
               R-14 Relational Invariant: Zero-Seat Class Handling
             </span>
             <StatusBadge status="PASS" size="sm" />
           </div>
           <p className="text-[#8C887D] dark:text-[#726F65] font-sans leading-relaxed">
-            In railway schedules, trains such as the Rajdhani or Shatabdi do not configure Sleeper (SL) or Chair Car (CC) coaches. As proven in the M1.4 R-14 MySQL suite, queries against unconfigured classes evaluate to exactly <code className="text-[#E9663B] dark:text-[#F0784D] bg-slate-900 px-1 py-0.5 rounded">0.00%</code> occupancy without throwing division-by-zero runtime exceptions or corrupting aggregation calculations.
+            In railway schedules, trains such as the Rajdhani or Shatabdi do not configure Sleeper (SL) or Chair Car (CC) coaches. As proven in the M1.4 R-14 MySQL suite, queries against unconfigured classes evaluate to exactly <code className="text-[#E9663B] dark:text-[#F0784D] bg-[#E6DFD3] dark:bg-[#171815] px-1 py-0.5 rounded">0.00%</code> occupancy without throwing division-by-zero runtime exceptions or corrupting aggregation calculations.
           </p>
         </div>
       </div>

@@ -80,8 +80,8 @@ export default function DisruptionsPage() {
               onClick={() => setFilterSeverity(sev)}
               className={`rounded-lg px-3 py-1 transition-colors ${
                 filterSeverity === sev
-                  ? 'bg-[#E9663B]/15 text-cyan-700 dark:text-[#E9663B] dark:text-[#F0784D] font-semibold border border-[#E9663B]/30'
-                  : 'text-[#5E6059] dark:text-[#A39F93] hover:text-slate-900 dark:hover:text-slate-200 hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26]'
+                  ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-semibold border border-[#E9663B]/30'
+                  : 'text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26]'
               }`}
             >
               {sev}
@@ -99,17 +99,17 @@ export default function DisruptionsPage() {
             key={inc.id}
             className={`rounded-xl border p-5 backdrop-blur-sm space-y-4 ${
               inc.severity === 'CRITICAL'
-                ? 'border-rose-500/40 bg-rose-950/20'
+                ? 'border-[#C83C2A]/30 bg-[#C83C2A]/10'
                 : inc.severity === 'MAJOR'
-                ? 'border-orange-500/40 bg-orange-950/20'
+                ? 'border-[#C57613]/30 bg-[#C57613]/10'
                 : inc.status === 'RESOLVED'
-                ? 'border-emerald-500/30 bg-emerald-950/15'
+                ? 'border-[#4A685F]/30 bg-[#4A685F]/10'
                 : 'border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] shadow-sm'
             }`}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[#D9D0C1] dark:border-[#353731] pb-3">
               <div className="flex items-center gap-3">
-                <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-xs font-mono font-bold text-[#242521] dark:text-[#F0E9DC] border border-slate-200 dark:border-slate-700">
+                <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-xs font-mono font-bold text-[#242521] dark:text-[#F0E9DC] border border-[#D9D0C1] dark:border-[#353731]">
                   Case {inc.code}
                 </span>
                 <h3 className="text-base font-bold text-[#242521] dark:text-[#F0E9DC]">{inc.title}</h3>
@@ -133,8 +133,8 @@ export default function DisruptionsPage() {
                 <span className="font-bold text-[#C57613] dark:text-[#E6962C]">
                   Station {inc.locationStation} • +{inc.estimatedDelayMinutes}m delay
                 </span>
-                <span className="text-[#8C887D] dark:text-[#726F65] text-[11px] block">
-                  Reported: {new Date(inc.reportedAt).toLocaleTimeString()}
+                <span suppressHydrationWarning className="text-[#8C887D] dark:text-[#726F65] text-[11px] block">
+                  Reported: {new Date(inc.reportedAt).toLocaleTimeString('en-US')}
                 </span>
               </div>
               <div>
@@ -156,8 +156,8 @@ export default function DisruptionsPage() {
               <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
                 {inc.cascadeStations.map((station, idx) => (
                   <React.Fragment key={station}>
-                    {idx > 0 && <span className="text-slate-600">→</span>}
-                    <div className="flex items-center gap-1.5 rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-[#5E6059] dark:text-[#A39F93] border border-slate-200 dark:border-slate-700">
+                    {idx > 0 && <span className="text-[#8C887D] dark:text-[#726F65]">→</span>}
+                    <div className="flex items-center gap-1.5 rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2.5 py-1 text-[#5E6059] dark:text-[#A39F93] border border-[#D9D0C1] dark:border-[#353731]">
                       <span className="font-bold text-[#E9663B] dark:text-[#F0784D]">{station}</span>
                       <span className="text-[#C57613] dark:text-[#E6962C] font-semibold">
                         +{Math.max(inc.estimatedDelayMinutes - idx * 10, 5)}m
@@ -168,7 +168,7 @@ export default function DisruptionsPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-[#E9663B]/20 bg-cyan-500/5 p-3 flex items-start gap-3">
+            <div className="rounded-lg border border-[#E9663B]/25 bg-[#E9663B]/5 p-3 flex items-start gap-3">
               <div className="rounded p-1 bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] shrink-0">
                 <Radio className="h-4 w-4" />
               </div>
@@ -176,7 +176,7 @@ export default function DisruptionsPage() {
                 <span className="text-xs font-bold font-mono text-[#E9663B] dark:text-[#F0784D] uppercase tracking-wide">
                   Active Mitigation Protocol
                 </span>
-                <p className="text-xs text-slate-300 mt-0.5 font-sans">{inc.mitigationAction}</p>
+                <p className="text-xs text-[#242521] dark:text-[#F0E9DC] mt-0.5 font-sans">{inc.mitigationAction}</p>
               </div>
             </div>
           </div>

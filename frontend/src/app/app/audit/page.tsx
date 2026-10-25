@@ -91,7 +91,7 @@ export default function AuditPage() {
           <select
             value={selectedOperation}
             onChange={(e) => setSelectedOperation(e.target.value)}
-            className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#171815] py-1.5 px-3 text-xs font-mono text-slate-800 dark:text-[#5E6059] dark:text-[#A39F93] focus:border-[#E9663B] focus:outline-none"
+            className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#171815] py-1.5 px-3 text-xs font-mono text-[#242521] dark:text-[#F0E9DC] focus:border-[#E9663B] focus:outline-none"
           >
             <option value="ALL">All Operations</option>
             <option value="SEAT_RESERVATION">Seat Reservations</option>
@@ -120,9 +120,9 @@ export default function AuditPage() {
               {filteredLogs.map((entry) => (
                 <tr key={entry.id} className="hover:bg-[#F4F0E7]/70 dark:hover:bg-[#171815]/60 transition-colors">
                   <td className="py-3.5 px-4 sm:px-6">
-                    <div className="font-bold text-slate-900 dark:text-slate-200">{entry.id}</div>
-                    <div className="text-[11px] text-[#8C887D] dark:text-[#726F65]">
-                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    <div className="font-bold text-[#242521] dark:text-[#F0E9DC]">{entry.id}</div>
+                    <div suppressHydrationWarning className="text-[11px] text-[#8C887D] dark:text-[#726F65]">
+                      {new Date(entry.timestamp).toLocaleTimeString('en-US')}
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
@@ -137,7 +137,7 @@ export default function AuditPage() {
                   </td>
                   <td className="py-3.5 px-4 text-[#5E6059] dark:text-[#A39F93]">
                     {entry.invariantRule ? (
-                      <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700">
+                      <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2 py-0.5 text-[11px] font-bold text-[#C57613] dark:text-[#E6962C] border border-[#D9D0C1] dark:border-[#353731]">
                         {entry.invariantRule}
                       </span>
                     ) : (

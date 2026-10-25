@@ -191,8 +191,8 @@ export default function OperationsOverviewPage() {
                     <span className="font-bold text-[#242521] dark:text-[#F0E9DC]">
                       {entry.operation.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-[#8C887D] dark:text-[#726F65]">
-                      {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span suppressHydrationWarning className="text-[10px] text-[#8C887D] dark:text-[#726F65]">
+                      {new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] text-[#5E6059] dark:text-[#A39F93] font-sans line-clamp-1">
