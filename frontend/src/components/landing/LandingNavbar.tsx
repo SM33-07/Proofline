@@ -97,20 +97,20 @@ export function LandingNavbar() {
               )}
             </button>
 
-            {/* Secondary Action: Demo Access / Role Perspective */}
+            {/* Secondary Action: Explore Demo */}
             <Link
               href="/demo"
               className="inline-flex items-center gap-1.5 rounded-full border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:border-[#E9663B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-colors cursor-pointer"
             >
-              <span>Demo Access</span>
+              <span>Explore Demo</span>
             </Link>
 
-            {/* Primary Action CTA: Launch Simulator */}
+            {/* Primary Action CTA: Access Operations */}
             <Link
-              href="/demo"
+              href="/login"
               className="inline-flex items-center gap-2 rounded-full bg-[#E9663B] hover:bg-[#D5542A] dark:bg-[#F0784D] dark:hover:bg-[#F78D65] px-4.5 py-1.5 text-xs font-display font-extrabold uppercase tracking-wider text-white dark:text-[#171815] shadow-xs hover:shadow-[0_4px_16px_rgba(233,102,59,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <span>Launch Simulator</span>
+              <span>Access Operations</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -161,14 +161,14 @@ export function LandingNavbar() {
                   onClick={() => setMobileOpen(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#D9D0C1] dark:border-[#353731] py-2 text-xs font-mono text-[#242521] dark:text-[#F0E9DC]"
                 >
-                  <span>Select Demo Perspective</span>
+                  <span>Explore Demo</span>
                 </Link>
                 <Link
-                  href="/demo"
+                  href="/login"
                   onClick={() => setMobileOpen(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E9663B] dark:bg-[#F0784D] py-2.5 text-xs font-display font-bold uppercase tracking-wider text-white dark:text-[#171815]"
                 >
-                  <span>Launch Simulator</span>
+                  <span>Access Operations</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Ticket,
   Search,
@@ -8,23 +8,93 @@ import {
   Check,
   X,
   MapPin,
-  RotateCcw,
   AlertCircle,
   Ban,
   ShieldCheck,
-  Sparkles,
   CheckSquare,
   Square,
+  Plus,
+  RefreshCw,
+  Loader2,
+  Server,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SelectionBar } from '@/components/shell/SelectionBar';
-import { BOOKINGS as INITIAL_BOOKINGS, STATIONS } from '@/lib/mock-data';
-import { BookingRecord, BookingStatus } from '@/lib/types';
+import { BOOKINGS as INITIAL_MOCK_BOOKINGS, STATIONS } from '@/lib/mock-data';
+import { BookingRecord, BookingStatus, TravelClass } from '@/lib/types';
+
+interface JavaRawBooking {
+  bookingId: number;
+  pnr: string;
+  journeyClassId: number;
+  passengerId: number;
+  status: 'CONFIRMED' | 'WAITLIST' | 'WAITLISTED' | 'CANCELLED';
+  bookedAt: string;
+  fareInr: number;
+  groupRef: string | null;
+}
+
+const PASSENGER_NAMES: Record<number, { name: string; age: number; gender: 'M' | 'F' | 'O' }> = {
+  1001: { name: 'Soham More', age: 24, gender: 'M' },
+  1002: { name: 'Stuti Pandey', age: 23, gender: 'F' },
+  1003: { name: 'Shikha Sharma', age: 25, gender: 'F' },
+  1004: { name: 'Rahul Verma', age: 29, gender: 'M' },
+  1005: { name: 'Priya Nair', age: 27, gender: 'F' },
+  1006: { name: 'Amit Kumar', age: 34, gender: 'M' },
+  1007: { name: 'Sneha Rao', age: 22, gender: 'F' },
+  1008: { name: 'Vikram Singh', age: 41, gender: 'M' },
+  1009: { name: 'Ananya Sen', age: 31, gender: 'F' },
+  1010: { name: 'Rohan Mehta', age: 28, gender: 'M' },
+};
+
+function mapJavaBookingToRecord(b: JavaRawBooking): BookingRecord {
+  const p = PASSENGER_NAMES[b.passengerId] || {
+    name: 'Passenger ' + b.passengerId,
+    age: 30,
+    gender: 'M',
+  };
+
+  const travelClass: TravelClass =
+    b.journeyClassId === 1 ? 'SL' : b.journeyClassId === 2 ? '3A' : 'CC';
+
+  const isWaitlisted = b.status === 'WAITLIST' || b.status === 'WAITLISTED';
+  const status: BookingStatus =
+    b.status === 'CONFIRMED'
+      ? 'CONFIRMED'
+      : isWaitlisted
+      ? 'WAITLIST'
+      : 'CANCELLED';
+
+  return {
+    pnr: b.pnr,
+    passengerName: p.name,
+    passengerAge: p.age,
+    passengerGender: p.gender,
+    trainNumber: '12951',
+    trainName: 'Mumbai Rajdhani Express',
+    sourceStation: 'MMCT',
+    destStation: 'NDLS',
+    travelDate: '2026-11-01',
+    travelClass: travelClass,
+    status: status,
+    coach: b.status === 'CONFIRMED' ? (b.journeyClassId === 1 ? 'S1' : 'B1') : undefined,
+    berthNumber: b.status === 'CONFIRMED' ? b.bookingId : undefined,
+    berthType: 'LOWER',
+    waitlistNumber: isWaitlisted ? b.bookingId : undefined,
+    bookingTimestamp: b.bookedAt || new Date().toISOString(),
+    fareAmount: b.fareInr,
+  };
+}
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<BookingRecord[]>(INITIAL_BOOKINGS);
+  const [dataSource, setDataSource] = useState<'JAVA_SIMULATOR' | 'MOCK'>('JAVA_SIMULATOR');
+  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedClass, setSelectedClass] = useState<string>('ALL');
@@ -34,6 +104,77 @@ export default function BookingsPage() {
   const [cancellationNotice, setCancellationNotice] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [selectedPnrs, setSelectedPnrs] = useState<string[]>([]);
+
+  // Create Reservation Modal
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [newPassengerId, setNewPassengerId] = useState<number>(1001);
+  const [newJourneyClassId, setNewJourneyClassId] = useState<number>(1);
+  const [newGroupRef, setNewGroupRef] = useState<string>('');
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // Fetch bookings from Java backend
+  const fetchJavaBookings = useCallback(async () => {
+    setIsLoading(true);
+    setBackendError(null);
+    try {
+      const res = await fetch('/api/bookings', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data: JavaRawBooking[] = await res.json();
+      const mapped = data.map(mapJavaBookingToRecord);
+      setBookings(mapped);
+      setDataSource('JAVA_SIMULATOR');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Backend unavailable';
+      setBackendError(msg);
+      // Fallback to mock if simulator is not reachable
+      setBookings(INITIAL_MOCK_BOOKINGS);
+      setDataSource('MOCK');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadInitial = async () => {
+      try {
+        const res = await fetch('/api/bookings', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data: JavaRawBooking[] = await res.json();
+        if (mounted) {
+          setBookings(data.map(mapJavaBookingToRecord));
+          setDataSource('JAVA_SIMULATOR');
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          setBackendError(err instanceof Error ? err.message : 'Offline');
+          setBookings(INITIAL_MOCK_BOOKINGS);
+          setDataSource('MOCK');
+          setIsLoading(false);
+        }
+      }
+    };
+    loadInitial();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Switch to Mock explicitly
+  const handleUseMock = () => {
+    setDataSource('MOCK');
+    setBookings(INITIAL_MOCK_BOOKINGS);
+    setSelectedBooking(null);
+    setSelectedPnrs([]);
+  };
+
+  // Switch to Java explicitly
+  const handleUseJava = () => {
+    fetchJavaBookings();
+  };
 
   // Station name helper
   const getStationName = (code: string) => {
@@ -111,51 +252,102 @@ export default function BookingsPage() {
     }
   };
 
-  // Demo-Only Cancellation Interaction
-  const handleDemoCancel = (pnr: string) => {
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (b.pnr === pnr) {
-          return {
-            ...b,
-            status: 'CANCELLED' as BookingStatus,
-          };
-        }
-        return b;
-      })
-    );
-
-    if (selectedBooking && selectedBooking.pnr === pnr) {
-      setSelectedBooking({
-        ...selectedBooking,
-        status: 'CANCELLED',
-      });
+  // Real Cancellation via Next.js Proxy
+  const handleCancelBooking = async (pnr: string) => {
+    if (dataSource === 'MOCK') {
+      // Local Mock fallback
+      setBookings((prev) =>
+        prev.map((b) => (b.pnr === pnr ? { ...b, status: 'CANCELLED' as BookingStatus } : b))
+      );
+      if (selectedBooking && selectedBooking.pnr === pnr) {
+        setSelectedBooking({ ...selectedBooking, status: 'CANCELLED' });
+      }
+      setShowCancelConfirm(false);
+      setCancellationNotice(`Mock cancellation applied to PNR ${pnr}.`);
+      setTimeout(() => setCancellationNotice(null), 4000);
+      return;
     }
 
-    setShowCancelConfirm(false);
-    setCancellationNotice(
-      `Demo cancellation applied to PNR ${pnr}. Updated in-memory UI state only; live backend was not modified.`
-    );
-    setTimeout(() => {
-      setCancellationNotice(null);
-    }, 5000);
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/bookings/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pnr: pnr.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+
+      // Success: refresh real bookings from Java simulator
+      setCancellationNotice(
+        `PNR ${pnr} cancelled in Java In-Memory Simulator. Head of waitlist promoted (if applicable).`
+      );
+      setShowCancelConfirm(false);
+      await fetchJavaBookings();
+
+      if (selectedBooking && selectedBooking.pnr === pnr) {
+        setSelectedBooking({ ...selectedBooking, status: 'CANCELLED' });
+      }
+      setTimeout(() => setCancellationNotice(null), 5000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Cancellation failed';
+      setCancellationNotice(`Cancellation Rejected: ${msg}`);
+      setTimeout(() => setCancellationNotice(null), 6000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResetDemoData = () => {
-    setBookings(INITIAL_BOOKINGS);
-    setSelectedBooking(null);
-    setShowCancelConfirm(false);
-    setSelectedPnrs([]);
-    setCancellationNotice('In-memory booking state has been reset to default mock dataset.');
-    setTimeout(() => setCancellationNotice(null), 4000);
+  // Real Booking Creation via Next.js Proxy
+  const handleCreateBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setCreateError(null);
+
+    try {
+      const payload = {
+        journeyClassId: Number(newJourneyClassId),
+        passengerId: Number(newPassengerId),
+        groupRef: newGroupRef.trim() || undefined,
+      };
+
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        const errorMsg = data.message || data.error || `HTTP ${res.status}`;
+        const ruleSuffix = data.ruleCode ? ` [${data.ruleCode}]` : '';
+        throw new Error(`${errorMsg}${ruleSuffix}`);
+      }
+
+      // Success
+      setShowCreateModal(false);
+      setNewGroupRef('');
+      setCancellationNotice(
+        `Booking Created! PNR: ${data.pnr} — Status: ${data.status} (Passenger ${data.passengerId})`
+      );
+      setTimeout(() => setCancellationNotice(null), 5000);
+      await fetchJavaBookings();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Booking creation failed');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleExportCsv = () => {
-    setCopyFeedbackText(`Exported ${selectedPnrs.length} booking records (Demo CSV simulation)`);
+    setCopyFeedbackText(`Exported ${selectedPnrs.length} booking records (CSV export)`);
     setTimeout(() => setCopyFeedbackText(''), 3000);
   };
 
-  // Derived metrics from current in-memory state
+  // Derived metrics from current state
   const totalCount = bookings.length;
   const confirmedCount = bookings.filter((b) => b.status === 'CONFIRMED').length;
   const waitlistCount = bookings.filter((b) => b.status === 'WAITLIST').length;
@@ -166,33 +358,87 @@ export default function BookingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reservations & Waitlist Operations"
-        subtitle="Search passenger bookings, inspect seat allocations, and test in-memory demo cancellations"
+        subtitle="Manage live seat reservations, inspect allocation dossiers, and test cancellation waitlist promotion"
         breadcrumbs={[
           { label: 'Operations', href: '/app' },
           { label: 'Bookings' },
         ]}
         actions={
-          <button
-            onClick={handleResetDemoData}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] px-3.5 py-1.5 text-xs font-mono font-bold text-[#242521] dark:text-[#F0E9DC] hover:border-[#E9663B]/50 transition-colors shadow-xs"
-            title="Reset in-memory dataset to initial mock data"
-          >
-            <RotateCcw className="h-3.5 w-3.5 text-[#E9663B] dark:text-[#F0784D]" />
-            <span>Reset Demo State</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowCreateModal(true);
+                setCreateError(null);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#E9663B] dark:bg-[#F0784D] px-3.5 py-1.5 text-xs font-mono font-bold text-white dark:text-[#171815] hover:bg-[#d85830] transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>New Reservation</span>
+            </button>
+            <button
+              onClick={dataSource === 'JAVA_SIMULATOR' ? handleUseJava : handleUseMock}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] px-3.5 py-1.5 text-xs font-mono font-bold text-[#242521] dark:text-[#F0E9DC] hover:border-[#E9663B]/50 transition-colors shadow-xs cursor-pointer"
+              title="Refresh reservation state from active data source"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-[#E9663B] dark:text-[#F0784D] ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
         }
       />
 
-      {/* Demo Notification / Toast Feedback */}
+      {/* Backend Mode Banner & DataSource Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-3.5 shadow-xs">
+        <div className="flex items-center gap-2.5 text-xs font-mono">
+          <Server className="h-4 w-4 text-[#E9663B] dark:text-[#F0784D] shrink-0" />
+          <span className="text-[#8C887D] dark:text-[#726F65]">Data Source:</span>
+          {dataSource === 'JAVA_SIMULATOR' ? (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#4A685F]/15 px-2 py-0.5 font-bold text-[#4A685F] dark:text-[#88A69A] border border-[#4A685F]/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#4A685F] dark:text-[#88A69A]" />
+              Tier 1 In-Memory Java Simulator (Port 8080)
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-2 py-0.5 font-bold text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              Mock Benchmark Dataset (Offline Fallback{backendError ? `: ${backendError}` : ''})
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <button
+            onClick={handleUseJava}
+            className={`rounded-lg px-2.5 py-1 transition-colors cursor-pointer ${
+              dataSource === 'JAVA_SIMULATOR'
+                ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-bold border border-[#E9663B]/30'
+                : 'text-[#5E6059] dark:text-[#A39F93] hover:bg-[#F4F0E7] dark:hover:bg-[#171815]'
+            }`}
+          >
+            Java Simulator
+          </button>
+          <button
+            onClick={handleUseMock}
+            className={`rounded-lg px-2.5 py-1 transition-colors cursor-pointer ${
+              dataSource === 'MOCK'
+                ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-bold border border-[#E9663B]/30'
+                : 'text-[#5E6059] dark:text-[#A39F93] hover:bg-[#F4F0E7] dark:hover:bg-[#171815]'
+            }`}
+          >
+            Mock Dataset
+          </button>
+        </div>
+      </div>
+
+      {/* Backend / Cancellation Toast Notification */}
       {cancellationNotice && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-300 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="flex items-center justify-between rounded-xl border border-[#4A685F]/40 bg-[#4A685F]/10 p-3.5 text-xs text-[#3D564F] dark:text-[#88A69A] backdrop-blur-md animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+            <AlertCircle className="h-4 w-4 text-[#4A685F] dark:text-[#88A69A] shrink-0" />
             <span>{cancellationNotice}</span>
           </div>
           <button
             onClick={() => setCancellationNotice(null)}
-            className="rounded p-1 hover:bg-amber-500/20 text-amber-400"
+            className="rounded p-1 hover:bg-[#4A685F]/20 text-[#4A685F] dark:text-[#88A69A]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -210,7 +456,7 @@ export default function BookingsPage() {
       {/* Mini KPI Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
         <div className="rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-3.5 shadow-xs">
-          <div className="text-[11px] font-mono uppercase text-[#8C887D] dark:text-[#726F65]">Total Sample</div>
+          <div className="text-[11px] font-mono uppercase text-[#8C887D] dark:text-[#726F65]">Total Bookings</div>
           <div className="text-xl font-bold font-mono text-[#242521] dark:text-[#F0E9DC] mt-1">{totalCount}</div>
         </div>
         <div className="rounded-xl border border-[#4A685F]/30 bg-[#4A685F]/10 p-3.5 shadow-xs">
@@ -247,13 +493,12 @@ export default function BookingsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Outline Status Filter Tabs from Reference 1 */}
             <div className="flex rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#E6DFD3] dark:bg-[#171815] p-0.5 text-xs">
               {(['ALL', 'CONFIRMED', 'WAITLIST', 'RAC', 'CANCELLED'] as const).map((st) => (
                 <button
                   key={st}
                   onClick={() => setSelectedStatus(st)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-mono transition-colors cursor-pointer ${
                     selectedStatus === st
                       ? 'bg-[#E9663B]/15 text-[#E9663B] dark:text-[#F0784D] font-semibold shadow-sm'
                       : 'text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC]'
@@ -265,7 +510,6 @@ export default function BookingsPage() {
               ))}
             </div>
 
-            {/* Class Filter Dropdown */}
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
@@ -282,7 +526,7 @@ export default function BookingsPage() {
           </div>
         </div>
 
-        {/* Active Filter Chips & Reset Bar */}
+        {/* Active Filter Chips */}
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center justify-between border-t border-[#D9D0C1] dark:border-[#353731] pt-2.5 text-xs font-mono">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -315,7 +559,7 @@ export default function BookingsPage() {
 
             <button
               onClick={clearAllFilters}
-              className="text-xs text-[#E9663B] dark:text-[#F0784D] hover:underline underline-offset-2"
+              className="text-xs text-[#E9663B] dark:text-[#F0784D] hover:underline underline-offset-2 cursor-pointer"
             >
               Clear all filters ({filteredBookings.length} matching)
             </button>
@@ -323,14 +567,27 @@ export default function BookingsPage() {
         )}
       </div>
 
-      {/* Bookings Table with Checkbox Row Selection from Reference 2 */}
-      {filteredBookings.length === 0 ? (
+      {/* Bookings Table */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center p-12 rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521]">
+          <Loader2 className="h-6 w-6 animate-spin text-[#E9663B] dark:text-[#F0784D] mb-2" />
+          <p className="text-xs font-mono text-[#5E6059] dark:text-[#A39F93]">Loading reservations from simulator...</p>
+        </div>
+      ) : filteredBookings.length === 0 ? (
         <EmptyState
           icon={Ticket}
-          title="No booking records match your criteria"
-          description="Try adjusting your search query, status filters, or travel class filters to broaden the results."
-          actionText="Clear All Filters"
-          onAction={clearAllFilters}
+          title={
+            dataSource === 'JAVA_SIMULATOR'
+              ? 'No bookings yet in Java Simulator'
+              : 'No booking records match your criteria'
+          }
+          description={
+            dataSource === 'JAVA_SIMULATOR'
+              ? 'The in-memory simulator is running fresh. Click "New Reservation" above to book a ticket and test capacity allocation.'
+              : 'Try adjusting your search query, status filters, or travel class filters to broaden the results.'
+          }
+          actionText={dataSource === 'JAVA_SIMULATOR' ? 'Book New Ticket' : 'Clear All Filters'}
+          onAction={dataSource === 'JAVA_SIMULATOR' ? () => setShowCreateModal(true) : clearAllFilters}
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] backdrop-blur-sm shadow-sm">
@@ -351,102 +608,82 @@ export default function BookingsPage() {
                       )}
                     </button>
                   </th>
-                  <th scope="col" className="py-3 px-4 sm:px-6">PNR</th>
-                  <th scope="col" className="py-3 px-4">Passenger</th>
-                  <th scope="col" className="py-3 px-4">Train & Route</th>
-                  <th scope="col" className="py-3 px-4">Class</th>
-                  <th scope="col" className="py-3 px-4">Allocation</th>
-                  <th scope="col" className="py-3 px-4">Status</th>
-                  <th scope="col" className="py-3 px-4 text-right">Fare</th>
-                  <th scope="col" className="py-3 px-4 text-center">Action</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4">PNR</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4">Passenger</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4 hidden md:table-cell">Train Corridor</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4">Class</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4">Status</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4 hidden sm:table-cell">Coach / Seat</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4 hidden lg:table-cell">Fare (INR)</th>
+                  <th scope="col" className="py-3 px-3 sm:px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6DFD3] dark:divide-[#272823]">
+              <tbody className="divide-y divide-[#D9D0C1] dark:divide-[#353731]">
                 {filteredBookings.map((b) => {
-                  const isSelected = selectedPnrs.includes(b.pnr);
+                  const isRowSelected = selectedPnrs.includes(b.pnr);
                   return (
                     <tr
                       key={b.pnr}
-                      onClick={() => {
-                        setSelectedBooking(b);
-                        setShowCancelConfirm(false);
-                      }}
-                      className={`cursor-pointer transition-colors group ${
-                        isSelected ? 'bg-[#E9663B]/10 dark:bg-[#F0784D]/15' : 'hover:bg-[#F4F0E7] dark:hover:bg-[#171815]'
+                      onClick={() => setSelectedBooking(b)}
+                      className={`group cursor-pointer transition-colors ${
+                        isRowSelected
+                          ? 'bg-[#E9663B]/10 dark:bg-[#F0784D]/10'
+                          : 'hover:bg-[#F4F0E7] dark:hover:bg-[#171815]'
                       }`}
                     >
-                      <td className="py-3.5 px-3 sm:px-4 text-center" onClick={(e) => toggleSelectRow(b.pnr, e)}>
-                        {isSelected ? (
-                          <CheckSquare className="h-4 w-4 text-[#E9663B] dark:text-[#F0784D] mx-auto" />
-                        ) : (
-                          <Square className="h-4 w-4 text-[#8C887D] dark:text-[#726F65] group-hover:text-[#242521] dark:group-hover:text-[#F0E9DC] mx-auto" />
-                        )}
+                      <td className="py-3 px-3 sm:px-4 text-center">
+                        <button
+                          onClick={(e) => toggleSelectRow(b.pnr, e)}
+                          className="text-[#8C887D] dark:text-[#726F65] hover:text-[#E9663B] dark:text-[#F0784D]"
+                        >
+                          {isRowSelected ? (
+                            <CheckSquare className="h-4 w-4 text-[#E9663B] dark:text-[#F0784D]" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                        </button>
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-[#E9663B] dark:text-[#F0784D]">{b.pnr}</span>
+                      <td className="py-3 px-3 sm:px-4 font-bold text-[#E9663B] dark:text-[#F0784D]">
+                        <span className="flex items-center gap-1.5">
+                          {b.pnr}
                           <button
                             onClick={(e) => handleCopyPnr(b.pnr, e)}
-                            className="rounded p-1 text-[#8C887D] dark:text-[#726F65] hover:bg-[#F4F0E7] dark:hover:bg-[#171815] hover:text-[#242521] dark:hover:text-[#F0E9DC] transition-colors"
-                            title="Copy PNR to clipboard"
-                            aria-label={`Copy PNR ${b.pnr}`}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:text-[#242521] dark:hover:text-[#F0E9DC] transition-opacity"
+                            title="Copy PNR"
                           >
-                            {copiedPnr === b.pnr ? (
-                              <Check className="h-3.5 w-3.5 text-[#4A685F] dark:text-[#88A69A]" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
+                            <Copy className="h-3 w-3" />
                           </button>
-                        </div>
+                        </span>
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 px-3 sm:px-4">
                         <div className="font-semibold text-[#242521] dark:text-[#F0E9DC] font-sans">{b.passengerName}</div>
-                        <div className="text-[11px] text-[#8C887D] dark:text-[#726F65] font-sans">
-                          {b.passengerAge}y / {b.passengerGender === 'M' ? 'Male' : b.passengerGender === 'F' ? 'Female' : 'Other'}
-                        </div>
+                        <div className="text-[11px] text-[#8C887D] dark:text-[#726F65]">{b.passengerAge}y • {b.passengerGender}</div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-[#242521] dark:text-[#F0E9DC]">{b.trainNumber}</div>
-                        <div className="text-[11px] text-[#8C887D] dark:text-[#726F65]">
-                          {b.sourceStation} → {b.destStation}
-                        </div>
+                      <td className="py-3 px-3 sm:px-4 hidden md:table-cell">
+                        <div className="font-semibold text-[#242521] dark:text-[#F0E9DC]">{b.trainNumber} - {b.trainName}</div>
+                        <div className="text-[11px] text-[#8C887D] dark:text-[#726F65]">{b.sourceStation} → {b.destStation}</div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className="rounded bg-[#E6DFD3] dark:bg-[#2A2C26] px-2 py-0.5 text-[#242521] dark:text-[#F0E9DC] font-bold border border-[#D9D0C1] dark:border-[#353731]">
+                      <td className="py-3 px-3 sm:px-4">
+                        <span className="rounded bg-[#E6DFD3] dark:bg-[#171815] px-2 py-0.5 font-bold text-[#242521] dark:text-[#F0E9DC] border border-[#D9D0C1] dark:border-[#353731]">
                           {b.travelClass}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4">
-                        {b.status === 'CONFIRMED' && (
-                          <div className="text-[#242521] dark:text-[#F0E9DC]">
-                            <span className="font-bold text-[#4A685F] dark:text-[#88A69A]">{b.coach}</span>
-                            <span className="text-[#8C887D] dark:text-[#726F65]"> - Seat {b.berthNumber}</span>
-                            <span className="text-[10px] text-[#8C887D] dark:text-[#726F65] block font-sans">
-                              {b.berthType}
-                            </span>
-                          </div>
-                        )}
-                        {b.status === 'WAITLIST' && (
-                          <div className="font-bold text-[#C57613] dark:text-[#E6962C]">
-                            WL-{b.waitlistNumber?.toString().padStart(2, '0')}
-                          </div>
-                        )}
-                        {b.status === 'RAC' && (
-                          <div className="font-bold text-[#3D6875] dark:text-[#78A3AF]">
-                            RAC-{b.racNumber?.toString().padStart(2, '0')} ({b.coach})
-                          </div>
-                        )}
-                        {b.status === 'CANCELLED' && (
-                          <div className="text-[#8C887D] dark:text-[#726F65] italic">Seat Released (Demo)</div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 px-3 sm:px-4">
                         <StatusBadge status={b.status} size="sm" />
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-[#242521] dark:text-[#F0E9DC]">
-                        ₹{b.fareAmount.toLocaleString('en-IN')}
+                      <td className="py-3 px-3 sm:px-4 hidden sm:table-cell text-[#5E6059] dark:text-[#A39F93]">
+                        {b.status === 'CONFIRMED' ? (
+                          <span>{b.coach || 'S1'} / Seat {b.berthNumber}</span>
+                        ) : b.status === 'WAITLIST' ? (
+                          <span className="text-[#E9663B] dark:text-[#F0784D] font-bold">WL #{b.waitlistNumber || 1}</span>
+                        ) : (
+                          <span className="italic text-[#8C887D] dark:text-[#726F65]">Released</span>
+                        )}
                       </td>
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3 px-3 sm:px-4 hidden lg:table-cell font-bold text-[#242521] dark:text-[#F0E9DC]">
+                        ₹{b.fareAmount.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3 sm:px-4 text-right">
                         <span className="text-[11px] text-[#E9663B] dark:text-[#F0784D] group-hover:underline">
                           Dossier
                         </span>
@@ -460,7 +697,7 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {/* Floating Bottom Selection Bar from Reference 2 */}
+      {/* Floating Selection Bar */}
       <SelectionBar
         selectedCount={selectedPnrs.length}
         totalCount={filteredBookings.length}
@@ -468,6 +705,120 @@ export default function BookingsPage() {
         onExport={handleExportCsv}
         entityName="bookings"
       />
+
+      {/* New Reservation Modal */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowCreateModal(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#242521] p-6 shadow-2xl backdrop-blur-md space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#D9D0C1] dark:border-[#353731] pb-3">
+              <div className="flex items-center gap-2">
+                <Ticket className="h-5 w-5 text-[#E9663B] dark:text-[#F0784D]" />
+                <h3 className="text-base font-bold text-[#242521] dark:text-[#F0E9DC]">
+                  New Reservation (Java Simulator)
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg p-1 text-[#8C887D] dark:text-[#726F65] hover:bg-[#F4F0E7] dark:hover:bg-[#171815]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {createError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Reservation Rejection</span>
+                </div>
+                <p className="mt-1 font-mono text-[11px]">{createError}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateBooking} className="space-y-4 text-xs font-mono">
+              <div>
+                <label className="block text-[#8C887D] dark:text-[#726F65] uppercase text-[10px] mb-1">
+                  Select Passenger (Simulator ID)
+                </label>
+                <select
+                  value={newPassengerId}
+                  onChange={(e) => setNewPassengerId(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#171815] h-10 px-3 text-xs font-mono text-[#242521] dark:text-[#F0E9DC] focus:border-[#E9663B] focus:outline-none"
+                >
+                  {Object.entries(PASSENGER_NAMES).map(([id, info]) => (
+                    <option key={id} value={id}>
+                      {id}: {info.name} ({info.age}y, {info.gender})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#8C887D] dark:text-[#726F65] uppercase text-[10px] mb-1">
+                  Travel Class & Inventory Target
+                </label>
+                <select
+                  value={newJourneyClassId}
+                  onChange={(e) => setNewJourneyClassId(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#171815] h-10 px-3 text-xs font-mono text-[#242521] dark:text-[#F0E9DC] focus:border-[#E9663B] focus:outline-none"
+                >
+                  <option value={1}>Class 1: SL — Sleeper (5 physical seats, ₹550.00)</option>
+                  <option value={2}>Class 2: 3A — AC 3-Tier (1 physical seat contention, ₹1450.00)</option>
+                  <option value={3}>Class 3: GN — General (0 physical seats waitlist, ₹180.00)</option>
+                </select>
+                <span className="text-[10px] text-[#8C887D] dark:text-[#726F65] mt-1 block">
+                  Tip: Booking 3A multiple times demonstrates FIFO waitlist cascade!
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[#8C887D] dark:text-[#726F65] uppercase text-[10px] mb-1">
+                  Group Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TOUR-GROUP-A"
+                  value={newGroupRef}
+                  onChange={(e) => setNewGroupRef(e.target.value)}
+                  className="w-full rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4] dark:bg-[#171815] h-10 px-3 text-xs text-[#242521] dark:text-[#F0E9DC] focus:border-[#E9663B] focus:outline-none"
+                />
+              </div>
+
+              <div className="border-t border-[#D9D0C1] dark:border-[#353731] pt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] px-3.5 py-2 text-xs font-semibold text-[#5E6059] dark:text-[#A39F93] hover:bg-[#F4F0E7] dark:hover:bg-[#171815]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#E9663B] dark:bg-[#F0784D] px-4 py-2 text-xs font-bold text-white dark:text-[#171815] hover:bg-[#d85830] transition-colors cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <span>Confirm Booking</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Booking Dossier Modal */}
       {selectedBooking && (
@@ -568,7 +919,7 @@ export default function BookingsPage() {
 
               <div className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] p-3.5 space-y-2">
                 <span className="text-[#8C887D] dark:text-[#726F65] uppercase text-[10px] block font-mono">
-                  Allocation & Invariant Check (INV-08)
+                  Allocation & Invariant State (INV-01 / INV-05)
                 </span>
                 <div className="flex items-center justify-between">
                   <span className="text-[#8C887D] dark:text-[#726F65]">Coach / Seat:</span>
@@ -577,7 +928,7 @@ export default function BookingsPage() {
                       ? 'Seat Released (Cancelled)'
                       : selectedBooking.coach
                       ? `${selectedBooking.coach} / Seat ${selectedBooking.berthNumber} (${selectedBooking.berthType})`
-                      : `Priority Waitlist Queue #${selectedBooking.waitlistNumber}`}
+                      : `Priority Waitlist Queue #${selectedBooking.waitlistNumber || 1}`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -587,19 +938,9 @@ export default function BookingsPage() {
                   </span>
                 </div>
                 <div className="border-t border-[#D9D0C1] dark:border-[#353731] pt-2 flex items-center justify-between text-[11px]">
-                  <span className="text-[#8C887D] dark:text-[#726F65]">Single Active Check (INV-08):</span>
-                  <span className="text-[#4A685F] dark:text-[#88A69A] font-bold">SPEC TARGET — Single Active Rule</span>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-[#C57613]/30 bg-[#C57613]/10 p-3 text-[11px] text-[#A25F0B] dark:text-[#E6962C] flex items-start gap-2.5">
-                <Sparkles className="h-4 w-4 text-[#C57613] dark:text-[#E6962C] shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold uppercase tracking-wider block font-mono">
-                    DEMO-ONLY INTERACTION NOTICE
-                  </span>
-                  <span>
-                    Any cancellation performed below updates local in-memory UI state only. The live MySQL database, Java backend service, and physical coach inventory remain completely isolated.
+                  <span className="text-[#8C887D] dark:text-[#726F65]">Backend Authority:</span>
+                  <span className="text-[#4A685F] dark:text-[#88A69A] font-bold">
+                    {dataSource === 'JAVA_SIMULATOR' ? 'Live Java In-Memory Service' : 'Mock Benchmark Dataset'}
                   </span>
                 </div>
               </div>
@@ -612,22 +953,23 @@ export default function BookingsPage() {
                   !showCancelConfirm ? (
                     <button
                       onClick={() => setShowCancelConfirm(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#C83C2A]/30 bg-[#C83C2A]/10 px-3.5 py-2 text-xs font-semibold text-[#A82B1B] dark:text-[#F45846] hover:bg-[#C83C2A]/20 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#C83C2A]/30 bg-[#C83C2A]/10 px-3.5 py-2 text-xs font-semibold text-[#A82B1B] dark:text-[#F45846] hover:bg-[#C83C2A]/20 transition-colors cursor-pointer"
                     >
                       <Ban className="h-3.5 w-3.5" />
-                      <span>Cancel Booking (Demo Only)</span>
+                      <span>Cancel Reservation</span>
                     </button>
                   ) : (
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleDemoCancel(selectedBooking.pnr)}
-                        className="rounded-lg bg-[#C83C2A] dark:bg-[#F45846] px-3 py-1.5 text-xs font-semibold text-white dark:text-[#171815] hover:bg-[#B33525] dark:hover:bg-[#E04B3A] transition-colors"
+                        onClick={() => handleCancelBooking(selectedBooking.pnr)}
+                        disabled={isSubmitting}
+                        className="rounded-lg bg-[#C83C2A] dark:bg-[#F45846] px-3 py-1.5 text-xs font-semibold text-white dark:text-[#171815] hover:bg-[#B33525] dark:hover:bg-[#E04B3A] transition-colors cursor-pointer"
                       >
-                        Confirm Demo Cancellation
+                        {isSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
                       </button>
                       <button
                         onClick={() => setShowCancelConfirm(false)}
-                        className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-3 py-1.5 text-xs text-[#5E6059] dark:text-[#A39F93] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors"
+                        className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-3 py-1.5 text-xs text-[#5E6059] dark:text-[#A39F93] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors cursor-pointer"
                       >
                         Abort
                       </button>
@@ -636,7 +978,7 @@ export default function BookingsPage() {
                 ) : (
                   <span className="text-xs text-[#8C887D] dark:text-[#726F65] italic flex items-center gap-1.5">
                     <Check className="h-3.5 w-3.5 text-[#4A685F] dark:text-[#88A69A]" />
-                    Seat Released (Cancelled in Demo State)
+                    Seat Released (Cancelled)
                   </span>
                 )}
               </div>
@@ -646,7 +988,7 @@ export default function BookingsPage() {
                   setSelectedBooking(null);
                   setShowCancelConfirm(false);
                 }}
-                className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-4 py-2 text-xs font-semibold text-[#242521] dark:text-[#F0E9DC] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors"
+                className="rounded-lg border border-[#D9D0C1] dark:border-[#353731] bg-[#F4F0E7] dark:bg-[#171815] px-4 py-2 text-xs font-semibold text-[#242521] dark:text-[#F0E9DC] hover:bg-[#E6DFD3] dark:hover:bg-[#2A2C26] transition-colors cursor-pointer"
               >
                 Close Dossier
               </button>

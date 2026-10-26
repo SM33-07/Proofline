@@ -170,18 +170,25 @@ export function LandingHero() {
               {/* Primary & Secondary CTAs */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                 <Link
-                  href="/demo"
+                  href="/login"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#E9663B] hover:bg-[#D5542A] dark:bg-[#F0784D] dark:hover:bg-[#F78D65] px-7 py-3.5 text-sm font-display font-extrabold uppercase tracking-wider text-white dark:text-[#171815] shadow-md hover:shadow-[0_8px_25px_rgba(233,102,59,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <span>Launch Simulator</span>
+                  <span>Access Operations</span>
                   <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  href="/demo"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4]/80 dark:bg-[#242521]/80 backdrop-blur-xs px-6 py-3.5 text-sm font-display font-bold uppercase tracking-wider text-[#242521] dark:text-[#F0E9DC] hover:border-[#E9663B]/60 dark:hover:border-[#F0784D]/60 hover:text-[#E9663B] dark:hover:text-[#F0784D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-all shadow-xs active:scale-[0.99]"
+                >
+                  <span>Explore Demo</span>
                 </Link>
 
                 <a
                   href="#features"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#D9D0C1] dark:border-[#353731] bg-[#FAF8F4]/80 dark:bg-[#242521]/80 backdrop-blur-xs px-6 py-3.5 text-sm font-display font-bold uppercase tracking-wider text-[#242521] dark:text-[#F0E9DC] hover:border-[#E9663B]/60 dark:hover:border-[#F0784D]/60 hover:text-[#E9663B] dark:hover:text-[#F0784D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B] transition-all shadow-xs active:scale-[0.99]"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-3.5 text-sm font-display font-medium uppercase tracking-wider text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] transition-all"
                 >
-                  <span>Explore Features</span>
+                  <span>Features</span>
                 </a>
               </div>
             </div>

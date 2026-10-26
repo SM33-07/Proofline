@@ -41,13 +41,22 @@ export default function DemoRoleSelectionPage() {
         <Link href="/" className="flex items-center gap-2 group" aria-label="RailSync Home">
           <RailSyncLogo variant="compact" size="sm" />
         </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-mono text-[#5E6059] dark:text-[#A39F93] hover:text-[#E9663B] dark:hover:text-[#F0784D] transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back to Landing Page</span>
-        </Link>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-[#E9663B] dark:text-[#F0784D] hover:underline transition-colors"
+          >
+            <span>Sign In to Operations</span>
+          </Link>
+          <span className="text-[#D9D0C1] dark:text-[#353731]">•</span>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-[#5E6059] dark:text-[#A39F93] hover:text-[#E9663B] dark:hover:text-[#F0784D] transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back to Landing Page</span>
+          </Link>
+        </div>
       </header>
 
       {/* Main Content */}

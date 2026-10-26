@@ -212,20 +212,38 @@ export function LandingFooter() {
             </div>
 
             <nav className="flex flex-col space-y-1.5 text-xs font-mono" aria-label="Explore RailSync Navigation">
+              {/* Access Operations / Sign In */}
+              <Link
+                href="/login"
+                className="group flex items-center justify-between p-2.5 rounded-lg border border-transparent hover:border-[#D9D0C1] dark:hover:border-[#353731] hover:bg-white/80 dark:hover:bg-[#1D1F1C] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B]"
+              >
+                <div className="flex flex-col">
+                  <span className="font-bold text-[#E9663B] dark:text-[#F0784D] group-hover:underline">
+                    Access Operations
+                  </span>
+                  <span className="text-[10px] text-[#8C887D] dark:text-[#726F65]">
+                    Enterprise Portal & Sign-In
+                  </span>
+                </div>
+                <ArrowRight className="h-4 w-4 text-[#E9663B] opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <div className="h-[1px] bg-[#D9D0C1]/40 dark:bg-[#353731]/40 mx-2" />
+
               {/* Simulator Access */}
               <Link
                 href="/demo"
                 className="group flex items-center justify-between p-2.5 rounded-lg border border-transparent hover:border-[#D9D0C1] dark:hover:border-[#353731] hover:bg-white/80 dark:hover:bg-[#1D1F1C] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E9663B]"
               >
                 <div className="flex flex-col">
-                  <span className="font-bold text-[#E9663B] dark:text-[#F0784D] group-hover:underline">
-                    Simulator Access
+                  <span className="font-medium text-[#242521] dark:text-[#F0E9DC] group-hover:text-[#E9663B] dark:group-hover:text-[#F0784D] transition-colors">
+                    Demo Access
                   </span>
                   <span className="text-[10px] text-[#8C887D] dark:text-[#726F65]">
                     Station Master & Engine Demo
                   </span>
                 </div>
-                <ArrowRight className="h-4 w-4 text-[#E9663B] opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="h-4 w-4 text-[#8C887D] dark:text-[#726F65] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 group-hover:text-[#E9663B] transition-all" />
               </Link>
 
               <div className="h-[1px] bg-[#D9D0C1]/40 dark:bg-[#353731]/40 mx-2" />

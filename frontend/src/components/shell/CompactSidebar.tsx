@@ -182,6 +182,21 @@ export function CompactSidebar({ isOpen, onClose }: SidebarProps) {
             </span>
             <span className="text-[#C57613] dark:text-[#E6962C] font-semibold">Demo Sandbox</span>
           </div>
+          <div className="mt-2 pt-2 border-t border-[#D9D0C1]/60 dark:border-[#353731]/60 flex items-center justify-between text-[10px] font-mono px-1">
+            <Link
+              href="/login"
+              className="text-[#E9663B] dark:text-[#F0784D] hover:underline flex items-center gap-1 font-semibold"
+            >
+              <span>Operator Sign-In</span>
+              <ExternalLink className="h-2.5 w-2.5" />
+            </Link>
+            <Link
+              href="/demo"
+              className="text-[#5E6059] dark:text-[#A39F93] hover:text-[#242521] dark:hover:text-[#F0E9DC] hover:underline"
+            >
+              Switch Role
+            </Link>
+          </div>
         </div>
       </aside>
     </>

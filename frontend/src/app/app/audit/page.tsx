@@ -117,7 +117,14 @@ export default function AuditPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E6DFD3] dark:divide-[#272823]">
-              {filteredLogs.map((entry) => (
+              {filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-xs font-mono text-[#8C887D] dark:text-[#726F65]">
+                    No audit records match your search or filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((entry) => (
                 <tr key={entry.id} className="hover:bg-[#F4F0E7]/70 dark:hover:bg-[#171815]/60 transition-colors">
                   <td className="py-3.5 px-4 sm:px-6">
                     <div className="font-bold text-[#242521] dark:text-[#F0E9DC]">{entry.id}</div>
@@ -151,7 +158,8 @@ export default function AuditPage() {
                     <StatusBadge status={entry.invariantStatus} size="sm" />
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
