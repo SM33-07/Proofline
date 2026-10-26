@@ -7,7 +7,10 @@
 # Runtime test data and logs (anchored to /data, preserving .gitkeep)
 /data/*.dat
 /data/*.log
+/data/*.txt
 !/data/.gitkeep
+/java/data/
+/frontend/data/
 
 # Dependencies
 /node_modules
