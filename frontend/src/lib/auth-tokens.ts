@@ -203,6 +203,46 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
   }
 }
 
+/**
+ * Verify cryptographic signature, format, and expiration of a session token
+ * without asserting revocation state. Used by authoritative revocation inspection
+ * endpoints to authenticate the caller before checking registry status.
+ */
+export async function verifySessionTokenSignature(token: string): Promise<SessionPayload | null> {
+  try {
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+
+    const [payloadB64, sigB64] = parts;
+    const enc = new TextEncoder();
+    const key = await getHmacKey();
+    const sigBytes = base64UrlDecode(sigB64);
+
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      sigBytes as unknown as BufferSource,
+      enc.encode(payloadB64)
+    );
+
+    if (!isValid) return null;
+
+    const payloadBytes = base64UrlDecode(payloadB64);
+    const dec = new TextDecoder();
+    const payload = JSON.parse(dec.decode(payloadBytes)) as SessionPayload;
+
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.exp || payload.exp <= now) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export function isSafeRelativeUrl(url: string | null | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();

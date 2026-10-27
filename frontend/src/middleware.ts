@@ -62,7 +62,12 @@ export async function middleware(request: NextRequest) {
         checkUrl.searchParams.set('userId', session.user.id);
         checkUrl.searchParams.set('version', String(session.sessionVersion || 1));
 
-        const checkRes = await fetch(checkUrl.toString(), { cache: 'no-store' });
+        const checkRes = await fetch(checkUrl.toString(), {
+          cache: 'no-store',
+          headers: {
+            cookie: request.headers.get('cookie') || '',
+          },
+        });
         if (checkRes.ok) {
           const checkData = await checkRes.json();
           if (checkData.revoked) {
@@ -113,7 +118,12 @@ export async function middleware(request: NextRequest) {
           checkUrl.searchParams.set('jti', session.jti);
           checkUrl.searchParams.set('userId', session.user.id);
           checkUrl.searchParams.set('version', String(session.sessionVersion || 1));
-          const checkRes = await fetch(checkUrl.toString(), { cache: 'no-store' });
+          const checkRes = await fetch(checkUrl.toString(), {
+            cache: 'no-store',
+            headers: {
+              cookie: request.headers.get('cookie') || '',
+            },
+          });
           if (checkRes.ok) {
             const data = await checkRes.json();
             if (data.revoked) isRevoked = true;
