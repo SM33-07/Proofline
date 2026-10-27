@@ -1,24 +1,63 @@
 'use client';
 
-import React from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Activity,
   Users,
   AlertTriangle,
   Clock,
   ShieldCheck,
+  ShieldAlert,
   ArrowRight,
   Train,
+  X,
 } from 'lucide-react';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RailwayNetworkMap } from '@/components/network/RailwayNetworkMap';
 import { JOURNEYS, AUDIT_LOGS } from '@/lib/mock-data';
 
+function AuditAccessNotice() {
+  const searchParams = useSearchParams();
+  const [dismissed, setDismissed] = useState(false);
+  const hasError = searchParams.get('error') === 'unauthorized_audit_access';
+
+  if (dismissed || !hasError) return null;
+
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-[#C83C2A]/40 bg-[#C83C2A]/15 p-4 text-xs font-mono text-[#C83C2A] dark:text-[#F45846] backdrop-blur-md animate-in fade-in duration-200">
+      <div className="flex items-center gap-3">
+        <ShieldAlert className="h-5 w-5 shrink-0" />
+        <div>
+          <p className="font-bold uppercase tracking-wider text-[11px]">
+            Access Denied: Restricted Administrative View
+          </p>
+          <p className="font-sans text-xs mt-0.5 text-[#5E6059] dark:text-[#F0E9DC]">
+            The Audit Ledger &amp; Formal Invariant Verifications (/app/audit) are strictly restricted to the Audit Inspector role. Your operator profile does not possess audit inspection privileges.
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={() => setDismissed(true)}
+        className="rounded p-1 hover:bg-[#C83C2A]/20 transition-colors"
+        title="Dismiss notice"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function OperationsOverviewPage() {
   return (
     <div className="space-y-6">
+      {/* Access Denied Warning Banner for Role Restrictions */}
+      <Suspense fallback={null}>
+        <AuditAccessNotice />
+      </Suspense>
+
       {/* Top Banner Alert if Incident Active */}
       <div className="relative overflow-hidden rounded-2xl border border-[#C83C2A]/30 bg-gradient-to-r from-[#C83C2A]/10 via-[#FAF8F4] to-[#FAF8F4] dark:from-[#F45846]/15 dark:via-[#242521] dark:to-[#242521] p-4 backdrop-blur-md shadow-xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

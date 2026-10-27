@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SelectionBar } from '@/components/shell/SelectionBar';
 import { BOOKINGS as INITIAL_MOCK_BOOKINGS, STATIONS } from '@/lib/mock-data';
 import { BookingRecord, BookingStatus, TravelClass } from '@/lib/types';
+import { useTheme } from '@/components/ThemeContext';
 
 interface JavaRawBooking {
   bookingId: number;
@@ -89,6 +90,8 @@ function mapJavaBookingToRecord(b: JavaRawBooking): BookingRecord {
 }
 
 export default function BookingsPage() {
+  const { userRole } = useTheme();
+  const isAuditInspector = userRole === 'Audit Inspector';
   const [dataSource, setDataSource] = useState<'JAVA_SIMULATOR' | 'MOCK'>('JAVA_SIMULATOR');
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -367,13 +370,24 @@ export default function BookingsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
+                if (isAuditInspector) return;
                 setShowCreateModal(true);
                 setCreateError(null);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#E9663B] dark:bg-[#F0784D] px-3.5 py-1.5 text-xs font-mono font-bold text-white dark:text-[#171815] hover:bg-[#d85830] transition-colors shadow-xs cursor-pointer"
+              disabled={isAuditInspector}
+              title={
+                isAuditInspector
+                  ? 'Audit Inspector accounts possess read-only verification privileges and cannot create bookings'
+                  : 'Create new seat reservation'
+              }
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-mono font-bold transition-colors shadow-xs ${
+                isAuditInspector
+                  ? 'bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-400/30'
+                  : 'bg-[#E9663B] dark:bg-[#F0784D] text-white dark:text-[#171815] hover:bg-[#d85830] cursor-pointer'
+              }`}
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>New Reservation</span>
+              <span>{isAuditInspector ? 'Reservation (Read-Only)' : 'New Reservation'}</span>
             </button>
             <button
               onClick={dataSource === 'JAVA_SIMULATOR' ? handleUseJava : handleUseMock}
@@ -950,7 +964,11 @@ export default function BookingsPage() {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-[#D9D0C1] dark:border-[#353731] pt-4">
               <div>
                 {selectedBooking.status !== 'CANCELLED' ? (
-                  !showCancelConfirm ? (
+                  isAuditInspector ? (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-mono text-amber-600 dark:text-amber-400">
+                      Audit Inspector: Read-Only (Cancellation Restricted)
+                    </div>
+                  ) : !showCancelConfirm ? (
                     <button
                       onClick={() => setShowCancelConfirm(true)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-[#C83C2A]/30 bg-[#C83C2A]/10 px-3.5 py-2 text-xs font-semibold text-[#A82B1B] dark:text-[#F45846] hover:bg-[#C83C2A]/20 transition-colors cursor-pointer"

@@ -13,6 +13,7 @@ import {
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DISRUPTIONS } from '@/lib/mock-data';
+import { useTheme } from '@/components/ThemeContext';
 
 interface CanonicalEvaluationResult {
   fixtureId: string;
@@ -240,6 +241,8 @@ const CANONICAL_FIXTURES: TestFixtureDefinition[] = [
 
 
 export default function DisruptionsPage() {
+  const { userRole } = useTheme();
+  const isStationMaster = userRole === 'Station Master';
   const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
 
   // Disruption Refund Evaluator State
@@ -315,8 +318,17 @@ export default function DisruptionsPage() {
           </div>
           <button
             onClick={handleEvaluate}
-            disabled={evaluating}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg bg-[#E9663B] dark:bg-[#F0784D] px-3.5 py-1.5 text-xs font-mono font-bold text-white dark:text-[#171815] hover:bg-[#d85830] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            disabled={evaluating || isStationMaster}
+            title={
+              isStationMaster
+                ? 'Station Master accounts do not have permission to evaluate network refund rules'
+                : 'Evaluate canonical disruption refund rules'
+            }
+            className={`self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-mono font-bold transition-colors shadow-xs ${
+              isStationMaster
+                ? 'bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-400/30'
+                : 'bg-[#E9663B] dark:bg-[#F0784D] text-white dark:text-[#171815] hover:bg-[#d85830] cursor-pointer'
+            }`}
           >
             {evaluating ? (
               <>
@@ -326,7 +338,7 @@ export default function DisruptionsPage() {
             ) : (
               <>
                 <Scale className="h-3.5 w-3.5" />
-                <span>Evaluate Rule Engine</span>
+                <span>{isStationMaster ? 'Evaluation Restricted' : 'Evaluate Rule Engine'}</span>
               </>
             )}
           </button>
