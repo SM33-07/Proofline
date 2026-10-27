@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJavaBackendUrl, backendUnavailableResponse } from '@/lib/server-backend';
-import {
-  SESSION_COOKIE_NAME,
-  verifySessionToken,
-  generateJavaBackendHeaders,
-} from '@/lib/auth-server';
+import { handleCancelBooking, CancelBookingPayload } from '@/lib/server-backend';
+import { SESSION_COOKIE_NAME, verifySessionToken } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -28,8 +24,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const backendUrl = getJavaBackendUrl();
-
   let body: unknown;
   try {
     body = await request.json();
@@ -40,20 +34,5 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  try {
-    const upstreamRes = await fetch(backendUrl + '/api/bookings/cancel', {
-      method: 'POST',
-      headers: {
-        ...generateJavaBackendHeaders(session.user),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-    });
-
-    const data = await upstreamRes.json();
-    return NextResponse.json(data, { status: upstreamRes.status });
-  } catch (err) {
-    return backendUnavailableResponse(backendUrl, err);
-  }
+  return handleCancelBooking(body as CancelBookingPayload, session.user);
 }

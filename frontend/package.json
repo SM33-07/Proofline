@@ -6,11 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:auth": "npx tsx tests/test_auth_suite.mjs",
+    "test:demo": "npx tsx tests/test_demo_flow.mjs",
+    "test:integration": "node tests/test_mysql_integration.mjs",
+    "test:parity": "node tests/test_differential_parity.mjs",
+    "test:system": "node tests/test_full_system.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",
     "motion": "^14.6.0",
+    "mysql2": "^3.24.6",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"

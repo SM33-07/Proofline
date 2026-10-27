@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJavaBackendUrl, backendUnavailableResponse } from '@/lib/server-backend';
-import {
-  SESSION_COOKIE_NAME,
-  verifySessionToken,
-  generateJavaBackendHeaders,
-} from '@/lib/auth-server';
+import { handleGetInventory } from '@/lib/server-backend';
+import { SESSION_COOKIE_NAME, verifySessionToken } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -16,25 +12,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const backendUrl = getJavaBackendUrl();
-  const searchParams = request.nextUrl.searchParams.toString();
-  const targetUrl = searchParams
-    ? backendUrl + '/api/inventory?' + searchParams
-    : backendUrl + '/api/inventory';
+  const cidParam = request.nextUrl.searchParams.get('journeyClassId');
+  const journeyClassId = cidParam ? parseInt(cidParam, 10) : undefined;
 
-  try {
-    const upstreamRes = await fetch(targetUrl, {
-      method: 'GET',
-      headers: generateJavaBackendHeaders(session.user),
-      cache: 'no-store',
-    });
-
-    const data = await upstreamRes.json();
-    return NextResponse.json(data, {
-      status: upstreamRes.status,
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
-    });
-  } catch (err) {
-    return backendUnavailableResponse(backendUrl, err);
-  }
+  return handleGetInventory(journeyClassId, session.user);
 }
