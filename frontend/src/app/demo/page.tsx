@@ -25,7 +25,7 @@ export default function DemoRoleSelectionPage() {
 
   const handleEnterSimulator = () => {
     setUserRole(selectedRole);
-    router.push('/app');
+    router.push(`/demo/operations?role=${encodeURIComponent(selectedRole)}`);
   };
 
   const rolesList: { role: UserRole; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -174,7 +174,7 @@ export default function DemoRoleSelectionPage() {
             onClick={handleEnterSimulator}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#E9663B] hover:bg-[#D5542A] dark:bg-[#F0784D] dark:hover:bg-[#F78D65] px-8 py-3 text-sm font-display font-extrabold uppercase tracking-wider text-white dark:text-[#171815] shadow-md hover:shadow-[0_4px_16px_rgba(233,102,59,0.35)] transition-all cursor-pointer"
           >
-            <span>Enter Simulator Workspace</span>
+            <span>Enter Operations Showcase</span>
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
